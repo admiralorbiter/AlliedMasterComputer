@@ -14,6 +14,7 @@ class ResearchBrief(BaseModel):
     source_text = db.Column(db.Text, nullable=False)  # Extracted text from PDF or user input
     pdf_filename = db.Column(db.String(255), nullable=True)  # Original filename if PDF uploaded
     pdf_data = db.Column(db.LargeBinary, nullable=True)  # PDF file stored as binary
+    content_hash = db.Column(db.String(64), nullable=True, index=True)  # MD5 hash of PDF content for duplicate detection
     source_type = db.Column(db.String(10), nullable=False)  # 'pdf' or 'text'
     model_name = db.Column(db.String(50), nullable=True)  # OpenAI model used to generate the brief
     
@@ -44,3 +45,64 @@ class ResearchBrief(BaseModel):
             from flask import current_app
             current_app.logger.error(f"Database error finding brief {brief_id} for user {user_id}: {str(e)}")
             return None
+    
+    @staticmethod
+    def find_duplicate_by_hash(content_hash):
+        """Find existing research briefs with the same content hash (global check)"""
+        try:
+            if not content_hash:
+                return None
+            return ResearchBrief.query.filter_by(content_hash=content_hash).first()
+        except Exception as e:
+            from flask import current_app
+            current_app.logger.error(f"Database error finding duplicate by hash: {str(e)}")
+            return None
+    
+    @staticmethod
+    def find_duplicate_by_filename(filename, user_id=None):
+        """Find existing research briefs with the same filename (global check, optionally filtered by user)"""
+        try:
+            if not filename:
+                return None
+            query = ResearchBrief.query.filter_by(pdf_filename=filename)
+            if user_id:
+                query = query.filter_by(user_id=user_id)
+            return query.first()
+        except Exception as e:
+            from flask import current_app
+            current_app.logger.error(f"Database error finding duplicate by filename: {str(e)}")
+            return None
+    
+    @staticmethod
+    def check_duplicate(pdf_filename, pdf_data):
+        """
+        Check for duplicate PDFs by both filename and content hash.
+        
+        Args:
+            pdf_filename: The filename of the PDF
+            pdf_data: The binary PDF data
+            
+        Returns:
+            Tuple of (is_duplicate: bool, duplicate_brief: ResearchBrief or None, reason: str or None)
+        """
+        try:
+            from flask_app.utils.openai_service import calculate_pdf_hash
+            
+            # Check by filename first (global check)
+            duplicate_by_filename = ResearchBrief.find_duplicate_by_filename(pdf_filename)
+            if duplicate_by_filename:
+                return True, duplicate_by_filename, f"Duplicate filename: '{pdf_filename}'"
+            
+            # Check by content hash (global check)
+            content_hash = calculate_pdf_hash(pdf_data)
+            duplicate_by_hash = ResearchBrief.find_duplicate_by_hash(content_hash)
+            if duplicate_by_hash:
+                return True, duplicate_by_hash, f"Duplicate content (hash match)"
+            
+            return False, None, None
+            
+        except Exception as e:
+            from flask import current_app
+            current_app.logger.error(f"Error checking for duplicates: {str(e)}")
+            # On error, don't block upload - return not duplicate
+            return False, None, None

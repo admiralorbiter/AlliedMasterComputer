@@ -5,7 +5,7 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from flask_app.models import ResearchBrief, db
 from flask_app.forms import ResearchBriefForm, EditBriefForm
-from flask_app.utils.openai_service import process_research_brief
+from flask_app.utils.openai_service import process_research_brief, calculate_pdf_hash
 from io import BytesIO
 import os
 
@@ -39,75 +39,226 @@ def register_research_routes(app):
     @app.route('/research/create', methods=['GET', 'POST'])
     @login_required
     def research_create():
-        """Create a new research brief"""
+        """Create a new research brief (supports single or multiple PDF uploads)"""
         form = ResearchBriefForm()
         
         try:
             if form.validate_on_submit():
-                source_text = None
-                pdf_data = None
-                pdf_filename = None
-                
-                # Handle PDF upload
-                if form.source_type.data == 'pdf' and form.pdf_file.data:
-                    pdf_file = form.pdf_file.data
-                    pdf_filename = secure_filename(pdf_file.filename)
-                    pdf_data = pdf_file.read()
-                    
-                    if len(pdf_data) == 0:
-                        flash('The uploaded PDF file is empty.', 'danger')
-                        return render_template('research/create.html', form=form)
-                
-                # Handle text input
-                elif form.source_type.data == 'text' and form.source_text.data:
+                # Handle text input (single brief)
+                if form.source_type.data == 'text' and form.source_text.data:
                     source_text = form.source_text.data.strip()
+                    
+                    # Process the brief
+                    brief_data, error = process_research_brief(
+                        source_text=source_text,
+                        pdf_data=None,
+                        pdf_filename=None
+                    )
+                    
+                    if error:
+                        current_app.logger.error(f"Error generating research brief: {error}")
+                        flash(f'Error generating brief: {error}', 'danger')
+                        return render_template('research/create.html', form=form)
+                    
+                    # Validate brief_data exists and has required fields
+                    if not brief_data:
+                        current_app.logger.error("process_research_brief returned None for brief_data without error")
+                        flash('Error generating brief: No data returned from AI service. Please try again.', 'danger')
+                        return render_template('research/create.html', form=form)
+                    
+                    # Validate required fields exist
+                    required_fields = ['title', 'citation', 'summary', 'source_text']
+                    missing_fields = [field for field in required_fields if field not in brief_data]
+                    if missing_fields:
+                        current_app.logger.error(f"Missing required fields in brief_data: {missing_fields}")
+                        flash(f'Error generating brief: Missing required fields: {", ".join(missing_fields)}. Please try again.', 'danger')
+                        return render_template('research/create.html', form=form)
+                    
+                    # Create the research brief record
+                    new_brief, db_error = ResearchBrief.safe_create(
+                        user_id=current_user.id,
+                        title=brief_data['title'],
+                        citation=brief_data['citation'],
+                        summary=brief_data['summary'],
+                        source_text=brief_data['source_text'],
+                        pdf_filename=None,
+                        pdf_data=None,
+                        source_type='text',
+                        model_name=brief_data.get('model_name')
+                    )
+                    
+                    if db_error:
+                        flash(f'Error saving brief: {db_error}', 'danger')
+                        return render_template('research/create.html', form=form)
+                    
+                    flash('Research brief created successfully!', 'success')
+                    current_app.logger.info(f"Research brief {new_brief.id} created by {current_user.username}")
+                    return redirect(url_for('research_view', id=new_brief.id))
                 
-                # Process the brief
-                brief_data, error = process_research_brief(
-                    source_text=source_text,
-                    pdf_data=pdf_data,
-                    pdf_filename=pdf_filename
-                )
-                
-                if error:
-                    current_app.logger.error(f"Error generating research brief: {error}")
-                    flash(f'Error generating brief: {error}', 'danger')
-                    return render_template('research/create.html', form=form)
-                
-                # Validate brief_data exists and has required fields
-                if not brief_data:
-                    current_app.logger.error("process_research_brief returned None for brief_data without error")
-                    flash('Error generating brief: No data returned from AI service. Please try again.', 'danger')
-                    return render_template('research/create.html', form=form)
-                
-                # Validate required fields exist
-                required_fields = ['title', 'citation', 'summary', 'source_text']
-                missing_fields = [field for field in required_fields if field not in brief_data]
-                if missing_fields:
-                    current_app.logger.error(f"Missing required fields in brief_data: {missing_fields}")
-                    flash(f'Error generating brief: Missing required fields: {", ".join(missing_fields)}. Please try again.', 'danger')
-                    return render_template('research/create.html', form=form)
-                
-                # Create the research brief record
-                new_brief, db_error = ResearchBrief.safe_create(
-                    user_id=current_user.id,
-                    title=brief_data['title'],
-                    citation=brief_data['citation'],
-                    summary=brief_data['summary'],
-                    source_text=brief_data['source_text'],
-                    pdf_filename=pdf_filename,
-                    pdf_data=pdf_data,
-                    source_type=form.source_type.data,
-                    model_name=brief_data.get('model_name')  # Store the model used
-                )
-                
-                if db_error:
-                    flash(f'Error saving brief: {db_error}', 'danger')
-                    return render_template('research/create.html', form=form)
-                
-                flash('Research brief created successfully!', 'success')
-                current_app.logger.info(f"Research brief {new_brief.id} created by {current_user.username}")
-                return redirect(url_for('research_view', id=new_brief.id))
+                # Handle PDF upload(s) - supports both single and multiple files
+                elif form.source_type.data == 'pdf':
+                    # Get files from request (Flask-WTF FileField doesn't handle multiple files well)
+                    pdf_files = request.files.getlist('pdf_file')
+                    # Filter out empty files
+                    pdf_files = [f for f in pdf_files if f and f.filename]
+                    
+                    if not pdf_files:
+                        flash('Please upload at least one PDF file.', 'danger')
+                        return render_template('research/create.html', form=form)
+                    
+                    # Validate file sizes
+                    max_size = 25 * 1024 * 1024  # 25 MB per file
+                    max_total_size = 100 * 1024 * 1024  # 100 MB total
+                    total_size = 0
+                    
+                    for pdf_file in pdf_files:
+                        pdf_file.seek(0, 2)  # Seek to end
+                        size = pdf_file.tell()
+                        pdf_file.seek(0)  # Reset to beginning
+                        total_size += size
+                        
+                        if size > max_size:
+                            flash(f'File "{pdf_file.filename}" exceeds 25MB limit. Current size: {size / (1024*1024):.2f} MB', 'danger')
+                            return render_template('research/create.html', form=form)
+                    
+                    if total_size > max_total_size:
+                        flash(f'Total size of all files exceeds 100MB limit. Current total: {total_size / (1024*1024):.2f} MB', 'danger')
+                        return render_template('research/create.html', form=form)
+                    
+                    # Process each PDF file
+                    results = []
+                    success_count = 0
+                    duplicate_count = 0
+                    error_count = 0
+                    
+                    for pdf_file in pdf_files:
+                        if not pdf_file:
+                            continue
+                        
+                        pdf_filename = secure_filename(pdf_file.filename)
+                        pdf_data = pdf_file.read()
+                        
+                        if len(pdf_data) == 0:
+                            results.append({
+                                'filename': pdf_filename,
+                                'status': 'error',
+                                'message': 'The uploaded PDF file is empty.',
+                                'brief_id': None
+                            })
+                            error_count += 1
+                            continue
+                        
+                        # Check for duplicates
+                        is_duplicate, duplicate_brief, duplicate_reason = ResearchBrief.check_duplicate(
+                            pdf_filename, pdf_data
+                        )
+                        
+                        if is_duplicate:
+                            results.append({
+                                'filename': pdf_filename,
+                                'status': 'duplicate',
+                                'message': f'Duplicate detected: {duplicate_reason}',
+                                'brief_id': duplicate_brief.id if duplicate_brief else None
+                            })
+                            duplicate_count += 1
+                            current_app.logger.info(f"Duplicate PDF detected: {pdf_filename} by {current_user.username}")
+                            continue
+                        
+                        # Process the brief
+                        brief_data, error = process_research_brief(
+                            source_text=None,
+                            pdf_data=pdf_data,
+                            pdf_filename=pdf_filename
+                        )
+                        
+                        if error:
+                            results.append({
+                                'filename': pdf_filename,
+                                'status': 'error',
+                                'message': error,
+                                'brief_id': None
+                            })
+                            error_count += 1
+                            current_app.logger.error(f"Error generating research brief for {pdf_filename}: {error}")
+                            continue
+                        
+                        # Validate brief_data exists and has required fields
+                        if not brief_data:
+                            results.append({
+                                'filename': pdf_filename,
+                                'status': 'error',
+                                'message': 'No data returned from AI service.',
+                                'brief_id': None
+                            })
+                            error_count += 1
+                            current_app.logger.error(f"process_research_brief returned None for {pdf_filename}")
+                            continue
+                        
+                        # Validate required fields exist
+                        required_fields = ['title', 'citation', 'summary', 'source_text']
+                        missing_fields = [field for field in required_fields if field not in brief_data]
+                        if missing_fields:
+                            results.append({
+                                'filename': pdf_filename,
+                                'status': 'error',
+                                'message': f'Missing required fields: {", ".join(missing_fields)}',
+                                'brief_id': None
+                            })
+                            error_count += 1
+                            current_app.logger.error(f"Missing required fields in brief_data for {pdf_filename}: {missing_fields}")
+                            continue
+                        
+                        # Calculate content hash for storage
+                        content_hash = calculate_pdf_hash(pdf_data)
+                        
+                        # Create the research brief record
+                        new_brief, db_error = ResearchBrief.safe_create(
+                            user_id=current_user.id,
+                            title=brief_data['title'],
+                            citation=brief_data['citation'],
+                            summary=brief_data['summary'],
+                            source_text=brief_data['source_text'],
+                            pdf_filename=pdf_filename,
+                            pdf_data=pdf_data,
+                            content_hash=content_hash,
+                            source_type='pdf',
+                            model_name=brief_data.get('model_name')
+                        )
+                        
+                        if db_error:
+                            results.append({
+                                'filename': pdf_filename,
+                                'status': 'error',
+                                'message': f'Error saving brief: {db_error}',
+                                'brief_id': None
+                            })
+                            error_count += 1
+                            current_app.logger.error(f"Error saving brief for {pdf_filename}: {db_error}")
+                            continue
+                        
+                        results.append({
+                            'filename': pdf_filename,
+                            'status': 'success',
+                            'message': 'Research brief created successfully!',
+                            'brief_id': new_brief.id
+                        })
+                        success_count += 1
+                        current_app.logger.info(f"Research brief {new_brief.id} created from {pdf_filename} by {current_user.username}")
+                    
+                    # Prepare flash messages and results for template
+                    if success_count > 0:
+                        flash(f'Successfully processed {success_count} PDF(s)!', 'success')
+                    if duplicate_count > 0:
+                        flash(f'Found {duplicate_count} duplicate PDF(s) that were skipped.', 'warning')
+                    if error_count > 0:
+                        flash(f'Failed to process {error_count} PDF(s).', 'danger')
+                    
+                    # If only one file and it succeeded, redirect to view page
+                    if len(results) == 1 and results[0]['status'] == 'success':
+                        return redirect(url_for('research_view', id=results[0]['brief_id']))
+                    
+                    # Otherwise, show results page
+                    return render_template('research/create.html', form=form, batch_results=results)
             
             return render_template('research/create.html', form=form)
             

@@ -3,6 +3,7 @@
 import os
 import json
 import re
+import hashlib
 import pdfplumber
 from flask import current_app
 from openai import OpenAI
@@ -23,6 +24,23 @@ except ImportError:
         APIConnectionError = Exception
         APITimeoutError = Exception
         APIStatusError = Exception
+
+def calculate_pdf_hash(pdf_data: bytes) -> str:
+    """
+    Calculate MD5 hash of PDF content for duplicate detection.
+    
+    Args:
+        pdf_data: Binary PDF data
+        
+    Returns:
+        MD5 hash as hexadecimal string (32 characters)
+    """
+    try:
+        return hashlib.md5(pdf_data).hexdigest()
+    except Exception as e:
+        current_app.logger.error(f"Error calculating PDF hash: {str(e)}")
+        return ""
+
 
 def extract_text_from_pdf(pdf_data: bytes) -> Tuple[Optional[str], Optional[str]]:
     """

@@ -15,12 +15,12 @@ class ResearchBriefForm(FlaskForm):
     )
     
     pdf_file = FileField(
-        'PDF File',
+        'PDF File(s)',
         validators=[
             Optional(),
             FileAllowed(['pdf'], message='Only PDF files are allowed.')
         ],
-        render_kw={"accept": ".pdf"}
+        render_kw={"accept": ".pdf", "multiple": True}
     )
     
     source_text = TextAreaField(
@@ -38,20 +38,27 @@ class ResearchBriefForm(FlaskForm):
     submit = SubmitField('Generate Brief')
     
     def validate_pdf_file(self, field):
-        """Validate PDF file if source type is PDF"""
+        """Validate PDF file(s) if source type is PDF
+        
+        Note: For multiple file uploads, actual validation is done in the route
+        using request.files.getlist(). This validator checks basic requirements.
+        """
         if self.source_type.data == 'pdf':
+            # Basic check - detailed validation happens in route for multiple files
+            # Flask-WTF FileField doesn't handle multiple files natively
             if not field.data:
-                raise ValidationError('Please upload a PDF file.')
+                raise ValidationError('Please upload at least one PDF file.')
             
-            # Check file size (25MB limit)
+            # Validate single file if provided (for backward compatibility)
             if hasattr(field.data, 'read'):
                 field.data.seek(0, 2)  # Seek to end
                 size = field.data.tell()
                 field.data.seek(0)  # Reset to beginning
                 
-                max_size = 25 * 1024 * 1024  # 25 MB
+                max_size = 25 * 1024 * 1024  # 25 MB per file
                 if size > max_size:
-                    raise ValidationError(f'File size exceeds 25MB limit. Current size: {size / (1024*1024):.2f} MB')
+                    filename = getattr(field.data, 'filename', 'File')
+                    raise ValidationError(f'File "{filename}" exceeds 25MB limit. Current size: {size / (1024*1024):.2f} MB')
     
     def validate_source_text(self, field):
         """Validate source text if source type is text"""
