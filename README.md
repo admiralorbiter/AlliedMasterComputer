@@ -1,132 +1,99 @@
-# Flask Login Starter
+# Allied Master Computer
 
-A modern, secure Flask starter application with built-in authentication, SQLAlchemy integration, and a clean, responsive UI.
+A personal utility suite built with Flask to help streamline various tasks in daily life. This application provides a secure, user-friendly platform for managing utilities and tools with comprehensive admin capabilities.
 
 ## Features
 
-- User authentication system with Flask-Login
-- SQLAlchemy database integration
-- Secure password hashing
-- Responsive Bootstrap 5 UI
-- Form validation with WTForms
-- Flash message support
-- Testing setup with pytest
-- Development and Production configurations
-- Environment variable support
-- Custom error handling
-- Modern CSS with CSS variables
+- **Secure Authentication**: User login system with role-based access control
+- **Admin Dashboard**: Comprehensive admin panel for user management and system monitoring
+- **Utility Tools**: Platform for hosting various utility applications and tools
+- **Logging & Monitoring**: Built-in logging and error tracking system
+- **Modern UI**: Clean, responsive interface with a professional design
 
-## Prerequisites
+## Getting Started
 
-- Python 3.x
+### Prerequisites
+
+- Python 3.8 or higher
 - pip (Python package manager)
 
-## Installation
+### Installation
 
 1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd flask-login-starter
-   ```
-
-2. Create a virtual environment and activate it:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. Create a `.env` file in the root directory and add your configuration:
-   ```
-   FLASK_ENV=development
-   SECRET_KEY=your-secret-key
-   DATABASE_URL=your-database-url  # Required for production
-   ```
-
-## Database Setup
-
-1. The application will automatically create a SQLite database in development mode
-2. To create an admin user, run:
-   ```bash
-   python create_admin.py
-   ```
-
-## Running the Application
-
-### Development
-
-To run the application in development mode, use:
-
 ```bash
-flask run
-```
-### Production
-
-To run the application in production mode, use:
-
-```bash
-gunicorn app:app --bind 0.0.0.0:$PORT
+git clone <repository-url>
+cd AlliedMasterComputer
 ```
 
-## Testing
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-Run the test suite using pytest:
+3. Set up environment variables:
+   - Create a `.env` file in the root directory
+   - Configure your database and secret key settings
+
+4. Initialize the database:
+```bash
+python app.py
+```
+
+5. Create an admin user:
+```bash
+python create_admin.py
+```
+
+### Running the Application
 
 ```bash
-pytest
+python app.py
 ```
-For coverage report:
 
-```bash
-pytest --cov=app
-```
+The application will be available at `http://localhost:5000` (or the port specified in your environment).
 
 ## Project Structure
-flask-login-starter/
-├── app.py # Application entry point
-├── config.py # Configuration settings
-├── models.py # Database models
-├── forms.py # Form definitions
-├── routes.py # Route handlers
-├── requirements.txt # Project dependencies
+
+```
+AlliedMasterComputer/
+├── app.py                 # Main application entry point
+├── config/                # Configuration files
+├── flask_app/
+│   ├── forms/            # WTForms form definitions
+│   ├── models/           # Database models
+│   ├── routes/            # Route handlers
+│   └── utils/            # Utility functions (logging, monitoring, error handling)
 ├── static/
-│ └── css/ # CSS stylesheets
-├── templates/
-│ ├── base.html # Base template
-│ ├── login.html # Login page
-│ └── index.html # Home page
-└── tests/ # Test directory
+│   └── css/              # Stylesheets
+├── templates/             # Jinja2 templates
+└── tests/                # Test suite
 ```
 
 ## Configuration
 
-The application supports three environments:
-- Development (default)
-- Testing
-- Production
+The application supports multiple environments:
+- **Development**: Default configuration for local development
+- **Testing**: Configuration for running tests
+- **Production**: Production-ready configuration
 
-Configuration is handled in `config.py` and can be extended based on requirements.
+Set the `FLASK_ENV` environment variable to switch between environments.
 
-## Security Features
+## Testing
 
-- Password hashing using Werkzeug
-- CSRF protection with Flask-WTF
-- Secure session handling
-- Environment-based configurations
-- SQL injection prevention through SQLAlchemy
+Run the test suite:
+```bash
+python run_tests.py
+```
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+Or use pytest directly:
+```bash
+pytest
+```
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is for personal use.
+
+## Contributing
+
+This is a personal utility project. Contributions and suggestions are welcome!

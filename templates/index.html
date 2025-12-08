@@ -1,11 +1,36 @@
 {% extends "base.html" %}
 
-{% block title %}Flask Login{% endblock %}
+{% block title %}Allied Master Computer{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
 {% endblock %}
 
 {% block content %}
-<h1>Flask Starter Code</h1>
+<div class="hero-section">
+    <h1>Allied Master Computer</h1>
+    <p class="tagline">Your Personal Utility Suite for Life's Tasks</p>
+</div>
+
+<div class="features-container">
+    <div class="feature-card">
+        <h2>🔧 Utility Tools</h2>
+        <p>Access a comprehensive suite of utility tools designed to help streamline your daily tasks and improve productivity.</p>
+    </div>
+    <div class="feature-card">
+        <h2>🔐 Secure Access</h2>
+        <p>Your data and tools are protected with secure authentication and role-based access control.</p>
+    </div>
+    <div class="feature-card">
+        <h2>📊 Management Dashboard</h2>
+        <p>Monitor and manage your utilities through an intuitive admin dashboard with comprehensive logging and monitoring.</p>
+    </div>
+</div>
+
+{% if not current_user.is_authenticated %}
+<div class="cta-section">
+    <h2>Get Started</h2>
+    <a href="{{ url_for('login') }}" class="cta-button">Login to Access</a>
+</div>
+{% endif %}
 {% endblock %}
