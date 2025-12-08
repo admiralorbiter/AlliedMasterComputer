@@ -448,7 +448,7 @@ def register_research_routes(app):
                 # Get all briefs for this user that have this tag
                 briefs = ResearchBrief.query.filter_by(user_id=current_user.id)\
                     .join(ResearchBrief.tags)\
-                    .filter_by(id=tag.id)\
+                    .filter(Tag.id == tag.id)\
                     .order_by(ResearchBrief.created_at.desc())\
                     .all()
                 
