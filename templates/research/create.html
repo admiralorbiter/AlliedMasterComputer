@@ -77,6 +77,22 @@
                 </div>
             </div>
 
+            <div class="form-section">
+                <h3>Tags (Optional)</h3>
+                <div class="form-group">
+                    {{ form.tags.label(class="form-label") }}
+                    {{ form.tags(class="form-control") }}
+                    <small class="form-text text-muted">Add tags separated by commas. These tags will be applied to all uploaded briefs.</small>
+                    {% if form.tags.errors %}
+                        <div class="text-danger">
+                            {% for error in form.tags.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
             <div class="form-actions">
                 {{ form.submit(class="btn btn-primary btn-lg") }}
                 <a href="{{ url_for('research_list') }}" class="btn btn-secondary btn-lg">Cancel</a>

@@ -12,6 +12,22 @@ import os
 def register_research_routes(app):
     """Register research brief routes"""
     
+    def add_tags_to_brief(brief, tag_input):
+        """Helper function to parse and add tags to a brief"""
+        if not tag_input or not tag_input.strip():
+            return
+        
+        try:
+            # Parse tags (comma-separated, normalize: lowercase, strip)
+            tag_names = [tag.strip().lower() for tag in tag_input.split(',') if tag.strip()]
+            
+            # Add each tag to the brief
+            for tag_name in tag_names:
+                brief.add_tag(tag_name)
+        except Exception as tag_error:
+            current_app.logger.error(f"Error adding tags to brief {brief.id}: {str(tag_error)}")
+            # Don't fail the whole operation if tags fail
+    
     @app.route('/research')
     @login_required
     def research_list():
@@ -109,6 +125,10 @@ def register_research_routes(app):
                     if db_error:
                         flash(f'Error saving brief: {db_error}', 'danger')
                         return render_template('research/create.html', form=form)
+                    
+                    # Add tags if provided
+                    if form.tags.data:
+                        add_tags_to_brief(new_brief, form.tags.data)
                     
                     flash('Research brief created successfully!', 'success')
                     current_app.logger.info(f"Research brief {new_brief.id} created by {current_user.username}")
@@ -254,6 +274,10 @@ def register_research_routes(app):
                             error_count += 1
                             current_app.logger.error(f"Error saving brief for {pdf_filename}: {db_error}")
                             continue
+                        
+                        # Add tags if provided
+                        if form.tags.data:
+                            add_tags_to_brief(new_brief, form.tags.data)
                         
                         results.append({
                             'filename': pdf_filename,
