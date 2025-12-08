@@ -138,10 +138,25 @@ def generate_research_brief(text: str, model: str = None) -> Tuple[Optional[Dict
 Text to analyze:
 {text[:150000]}"""  # Limit to ~150k chars to leave room for prompt and response
         
-        # Call OpenAI API with structured output
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
+        # Determine if model supports JSON mode
+        # Models that support response_format json_object:
+        # gpt-4o, gpt-4o-mini, gpt-4-turbo-preview, gpt-4-0125-preview, gpt-3.5-turbo-0125
+        # and newer versions of gpt-4-turbo (after 2024-04-09)
+        # Note: Older models like gpt-4-turbo (without date) may not support it
+        model_lower = model.lower()
+        json_mode_models = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo-preview', 'gpt-4-0125-preview', 
+                           'gpt-3.5-turbo-0125', 'gpt-4-turbo-2024-04-09', 'gpt-4-turbo-2024-08-06',
+                           'gpt-4-turbo-2024-11-20']
+        supports_json_mode = (
+            any(model_lower.startswith(m.lower()) for m in json_mode_models) or
+            'gpt-4o' in model_lower or
+            ('gpt-4-turbo' in model_lower and '-' in model)  # Date-suffixed versions
+        )
+        
+        # Build API call parameters
+        api_params = {
+            "model": model,
+            "messages": [
                 {
                     "role": "system",
                     "content": "You are a research assistant that creates structured research briefs from academic and professional texts. Always respond with valid JSON only."
@@ -151,10 +166,29 @@ Text to analyze:
                     "content": prompt
                 }
             ],
-            response_format={"type": "json_object"},
-            temperature=0.3,
-            max_tokens=2000
-        )
+            "temperature": 0.3,
+            "max_tokens": 2000
+        }
+        
+        # Only add response_format if model supports it
+        if supports_json_mode:
+            api_params["response_format"] = {"type": "json_object"}
+        
+        # Call OpenAI API with structured output
+        # If response_format is not supported, retry without it
+        try:
+            response = client.chat.completions.create(**api_params)
+        except Exception as e:
+            error_str = str(e)
+            # Check if error is about response_format not being supported
+            if "response_format" in error_str.lower() and "not supported" in error_str.lower() and "response_format" in api_params:
+                # Retry without response_format
+                current_app.logger.warning(f"Model {model} does not support response_format, retrying without it")
+                api_params.pop("response_format", None)
+                response = client.chat.completions.create(**api_params)
+            else:
+                # Re-raise if it's a different error
+                raise
         
         # Parse the response
         response_text = response.choices[0].message.content
