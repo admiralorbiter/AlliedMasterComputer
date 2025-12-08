@@ -3,7 +3,7 @@
 from flask import flash, redirect, render_template, url_for, request, current_app, send_file, jsonify
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from flask_app.models import ResearchBrief, db
+from flask_app.models import ResearchBrief, Tag, db
 from flask_app.forms import ResearchBriefForm, EditBriefForm
 from flask_app.utils.openai_service import process_research_brief, calculate_pdf_hash
 from io import BytesIO
@@ -15,12 +15,17 @@ def register_research_routes(app):
     @app.route('/research')
     @login_required
     def research_list():
-        """List all research briefs for the current user"""
+        """List all research briefs for the current user, optionally filtered by tag"""
         try:
             page = request.args.get('page', 1, type=int)
+            tag_id = request.args.get('tag', type=int)
             per_page = 20
             
-            briefs = ResearchBrief.find_by_user(current_user.id, page=page, per_page=per_page)
+            # Get briefs, optionally filtered by tag
+            if tag_id:
+                briefs = ResearchBrief.find_by_user_and_tag(current_user.id, tag_id=tag_id, page=page, per_page=per_page)
+            else:
+                briefs = ResearchBrief.find_by_user(current_user.id, page=page, per_page=per_page)
             
             if briefs is None:
                 flash('An error occurred while loading your research briefs.', 'danger')
@@ -28,13 +33,27 @@ def register_research_routes(app):
                     page=page, per_page=per_page, error_out=False
                 )
             
-            current_app.logger.info(f"Research briefs list accessed by {current_user.username}")
-            return render_template('research/list.html', briefs=briefs)
+            # Get all available tags with counts for filter UI
+            tags_with_counts, error = Tag.get_all_tags_with_counts()
+            if error:
+                current_app.logger.warning(f"Error getting tags with counts: {error}")
+                tags_with_counts = []
+            
+            # Get selected tag if filtering
+            selected_tag = None
+            if tag_id:
+                selected_tag = Tag.query.get(tag_id)
+            
+            current_app.logger.info(f"Research briefs list accessed by {current_user.username}" + (f" (filtered by tag {tag_id})" if tag_id else ""))
+            return render_template('research/list.html', 
+                                 briefs=briefs, 
+                                 tags_with_counts=tags_with_counts,
+                                 selected_tag=selected_tag)
             
         except Exception as e:
             current_app.logger.error(f"Error in research list: {str(e)}")
             flash('An error occurred while loading your research briefs.', 'danger')
-            return render_template('research/list.html', briefs=None)
+            return render_template('research/list.html', briefs=None, tags_with_counts=[], selected_tag=None)
     
     @app.route('/research/create', methods=['GET', 'POST'])
     @login_required
@@ -300,8 +319,14 @@ def register_research_routes(app):
         
         form = EditBriefForm(obj=brief)
         
+        # Populate tags field with current tags
+        if request.method == 'GET':
+            current_tags = brief.get_tag_names()
+            form.tags.data = ', '.join(current_tags)
+        
         try:
             if form.validate_on_submit():
+                # Update basic fields
                 success, error = brief.safe_update(
                     title=form.title.data.strip(),
                     citation=form.citation.data.strip(),
@@ -311,6 +336,33 @@ def register_research_routes(app):
                 if error:
                     flash(f'Error updating brief: {error}', 'danger')
                 else:
+                    # Handle tags update
+                    try:
+                        # Parse tag input (comma-separated names)
+                        tag_input = form.tags.data.strip() if form.tags.data else ''
+                        
+                        # Get current tag names
+                        current_tag_names = set(brief.get_tag_names())
+                        
+                        # Parse new tags (normalize: lowercase, strip)
+                        new_tag_names = set()
+                        if tag_input:
+                            new_tag_names = {tag.strip().lower() for tag in tag_input.split(',') if tag.strip()}
+                        
+                        # Tags to add (in new but not in current)
+                        tags_to_add = new_tag_names - current_tag_names
+                        for tag_name in tags_to_add:
+                            brief.add_tag(tag_name)
+                        
+                        # Tags to remove (in current but not in new)
+                        tags_to_remove = current_tag_names - new_tag_names
+                        for tag_name in tags_to_remove:
+                            brief.remove_tag(tag_name)
+                        
+                    except Exception as tag_error:
+                        current_app.logger.error(f"Error updating tags for brief {id}: {str(tag_error)}")
+                        flash('Brief updated but there was an error updating tags. Please try editing again.', 'warning')
+                    
                     flash('Research brief updated successfully!', 'success')
                     current_app.logger.info(f"Research brief {id} updated by {current_user.username}")
                     return redirect(url_for('research_view', id=brief.id))
@@ -381,3 +433,55 @@ def register_research_routes(app):
             current_app.logger.error(f"Error downloading PDF for research brief {id}: {str(e)}")
             flash('An error occurred while downloading the PDF.', 'danger')
             return redirect(url_for('research_view', id=id))
+    
+    @app.route('/research/by-tags')
+    @login_required
+    def research_by_tags():
+        """Show all research briefs grouped by tag"""
+        try:
+            # Get all tags that have at least one brief
+            all_tags = Tag.get_all_tags()
+            
+            # Group briefs by tag for the current user
+            tags_with_briefs = []
+            for tag in all_tags:
+                # Get all briefs for this user that have this tag
+                briefs = ResearchBrief.query.filter_by(user_id=current_user.id)\
+                    .join(ResearchBrief.tags)\
+                    .filter_by(id=tag.id)\
+                    .order_by(ResearchBrief.created_at.desc())\
+                    .all()
+                
+                if briefs:  # Only include tags that have briefs for this user
+                    tags_with_briefs.append((tag, briefs))
+            
+            # Sort by tag name
+            tags_with_briefs.sort(key=lambda x: x[0].name)
+            
+            # Also get briefs with no tags
+            # Get all brief IDs that have tags
+            from sqlalchemy import distinct, select
+            from flask_app.models.research_brief import research_brief_tags
+            
+            # Get all brief IDs that have at least one tag
+            brief_ids_with_tags = db.session.query(distinct(research_brief_tags.c.research_brief_id)).all()
+            brief_ids_with_tags_set = {row[0] for row in brief_ids_with_tags}
+            
+            # Get all user's briefs
+            all_user_briefs = ResearchBrief.query.filter_by(user_id=current_user.id).all()
+            
+            # Filter to get only those without tags
+            briefs_without_tags = [brief for brief in all_user_briefs if brief.id not in brief_ids_with_tags_set]
+            briefs_without_tags.sort(key=lambda x: x.created_at, reverse=True)
+            
+            current_app.logger.info(f"Research briefs by tags viewed by {current_user.username}")
+            return render_template('research/by_tags.html', 
+                                 tags_with_briefs=tags_with_briefs,
+                                 briefs_without_tags=briefs_without_tags)
+            
+        except Exception as e:
+            current_app.logger.error(f"Error in research by tags: {str(e)}")
+            import traceback
+            current_app.logger.error(f"Traceback: {traceback.format_exc()}")
+            flash('An error occurred while loading briefs by tags.', 'danger')
+            return render_template('research/by_tags.html', tags_with_briefs=[], briefs_without_tags=[])

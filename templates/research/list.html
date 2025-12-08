@@ -10,11 +10,49 @@
 <div class="research-container">
     <div class="research-header">
         <h1>Research Briefs</h1>
-        <a href="{{ url_for('research_create') }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Create New Brief
-        </a>
+        <div class="header-actions">
+            <a href="{{ url_for('research_by_tags') }}" class="btn btn-secondary">
+                <i class="fas fa-tags"></i> View by Tags
+            </a>
+            <a href="{{ url_for('research_create') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Create New Brief
+            </a>
+        </div>
     </div>
 
+    <div class="research-layout">
+        <!-- Tag Filter Sidebar -->
+        <div class="tag-filter-sidebar">
+            <h3><i class="fas fa-filter"></i> Filter by Tags</h3>
+            {% if selected_tag %}
+                <div class="active-filter">
+                    <span class="active-tag-indicator">
+                        <i class="fas fa-tag"></i> Filtered by: <strong>{{ selected_tag.name }}</strong>
+                    </span>
+                    <a href="{{ url_for('research_list') }}" class="btn-clear-filter">
+                        <i class="fas fa-times"></i> Clear Filter
+                    </a>
+                </div>
+            {% endif %}
+            
+            {% if tags_with_counts %}
+                <div class="tag-list">
+                    {% for tag, count in tags_with_counts %}
+                        <a href="{{ url_for('research_list', tag=tag.id) }}" 
+                           class="tag-filter-link {% if selected_tag and selected_tag.id == tag.id %}active{% endif %}">
+                            <i class="fas fa-tag"></i>
+                            <span class="tag-name">{{ tag.name }}</span>
+                            <span class="tag-count">({{ count }})</span>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="no-tags">No tags yet. Add tags when editing a brief.</p>
+            {% endif %}
+        </div>
+
+        <!-- Main Content -->
+        <div class="research-main-content">
     {% if briefs and briefs.items %}
     <!-- Briefs Table -->
     <div class="table-responsive">
@@ -23,6 +61,7 @@
                 <tr>
                     <th>Title</th>
                     <th>Citation</th>
+                    <th>Tags</th>
                     <th>Source Type</th>
                     <th>Created</th>
                     <th>Actions</th>
@@ -38,6 +77,19 @@
                     </td>
                     <td class="citation-cell">
                         {{ brief.citation[:100] }}{% if brief.citation|length > 100 %}...{% endif %}
+                    </td>
+                    <td class="tags-cell">
+                        {% set brief_tags = brief.tags.all() %}
+                        {% if brief_tags %}
+                            {% for tag in brief_tags %}
+                                <a href="{{ url_for('research_list', tag=tag.id) }}" 
+                                   class="tag-badge">
+                                    <i class="fas fa-tag"></i> {{ tag.name }}
+                                </a>
+                            {% endfor %}
+                        {% else %}
+                            <span class="no-tags-text">—</span>
+                        {% endif %}
                     </td>
                     <td>
                         {% if brief.source_type == 'pdf' %}
@@ -89,7 +141,7 @@
         <ul class="pagination justify-content-center">
             {% if briefs.has_prev %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('research_list', page=briefs.prev_num) }}">Previous</a>
+                    <a class="page-link" href="{{ url_for('research_list', page=briefs.prev_num, tag=selected_tag.id if selected_tag else None) }}">Previous</a>
                 </li>
             {% endif %}
             
@@ -129,6 +181,8 @@
         </a>
     </div>
     {% endif %}
+        </div>
+    </div>
 </div>
 
 <!-- Delete Confirmation Modal -->

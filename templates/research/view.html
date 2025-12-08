@@ -58,6 +58,19 @@
                 <strong>Last Updated:</strong> {{ brief.updated_at.strftime('%Y-%m-%d %H:%M') }}
             </div>
             {% endif %}
+            <div class="meta-item tags-meta">
+                <strong>Tags:</strong>
+                {% set brief_tags = brief.tags.all() %}
+                {% if brief_tags %}
+                    {% for tag in brief_tags %}
+                        <a href="{{ url_for('research_list', tag=tag.id) }}" class="tag-badge">
+                            <i class="fas fa-tag"></i> {{ tag.name }}
+                        </a>
+                    {% endfor %}
+                {% else %}
+                    <span class="no-tags-text">No tags</span>
+                {% endif %}
+            </div>
         </div>
 
         <div class="brief-section">

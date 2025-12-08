@@ -62,6 +62,35 @@
                 </div>
             </div>
 
+            <div class="form-section">
+                <div class="form-group">
+                    {{ form.tags.label(class="form-label") }}
+                    <div class="tags-input-wrapper">
+                        {{ form.tags(class="form-control tags-input") }}
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> Enter tags separated by commas (e.g., ai, research, machine-learning)
+                        </small>
+                    </div>
+                    {% if form.tags.errors %}
+                        <div class="text-danger">
+                            {% for error in form.tags.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    {% if brief.tags.count() > 0 %}
+                        <div class="current-tags-display">
+                            <strong>Current tags:</strong>
+                            {% for tag in brief.tags.all() %}
+                                <span class="tag-badge-display">
+                                    <i class="fas fa-tag"></i> {{ tag.name }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
             <div class="form-actions">
                 {{ form.submit(class="btn btn-primary btn-lg") }}
                 <a href="{{ url_for('research_view', id=brief.id) }}" class="btn btn-secondary btn-lg">Cancel</a>

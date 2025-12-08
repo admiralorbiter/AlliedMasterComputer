@@ -98,4 +98,15 @@ class EditBriefForm(FlaskForm):
         }
     )
     
+    tags = StringField(
+        'Tags',
+        validators=[
+            Optional(),
+            Length(max=500, message="Tags input must be less than 500 characters.")
+        ],
+        render_kw={
+            "placeholder": "Enter tags separated by commas (e.g., ai, research, machine-learning)"
+        }
+    )
+    
     submit = SubmitField('Update Brief')

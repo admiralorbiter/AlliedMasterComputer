@@ -2,6 +2,15 @@
 
 from .base import db, BaseModel
 
+# Association table for many-to-many relationship between ResearchBrief and Tag
+research_brief_tags = db.Table(
+    'research_brief_tags',
+    db.Column('research_brief_id', db.Integer, db.ForeignKey('research_briefs.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('tag_id', db.Integer, db.ForeignKey('tags.id', ondelete='CASCADE'), primary_key=True),
+    db.Index('idx_research_brief_tags_brief', 'research_brief_id'),
+    db.Index('idx_research_brief_tags_tag', 'tag_id')
+)
+
 class ResearchBrief(BaseModel):
     """Model for storing research briefs generated from PDFs or text"""
     __tablename__ = 'research_briefs'
@@ -20,6 +29,14 @@ class ResearchBrief(BaseModel):
     
     # Relationship to User
     user = db.relationship('User', backref=db.backref('research_briefs', lazy='dynamic', cascade='all, delete-orphan'))
+    
+    # Many-to-many relationship with Tag
+    tags = db.relationship(
+        'Tag',
+        secondary=research_brief_tags,
+        back_populates='research_briefs',
+        lazy='dynamic'
+    )
     
     def __repr__(self):
         return f'<ResearchBrief {self.id}: {self.title[:50]}>'
@@ -106,3 +123,65 @@ class ResearchBrief(BaseModel):
             current_app.logger.error(f"Error checking for duplicates: {str(e)}")
             # On error, don't block upload - return not duplicate
             return False, None, None
+    
+    def add_tag(self, tag_name):
+        """Add a tag to this brief (creates tag if it doesn't exist)"""
+        try:
+            from .tag import Tag
+            tag, error = Tag.find_or_create_by_name(tag_name)
+            if error or not tag:
+                return False, error or "Failed to create or find tag"
+            
+            if tag not in self.tags:
+                self.tags.append(tag)
+                db.session.commit()
+            
+            return True, None
+        except Exception as e:
+            db.session.rollback()
+            from flask import current_app
+            current_app.logger.error(f"Error adding tag '{tag_name}' to brief {self.id}: {str(e)}")
+            return False, str(e)
+    
+    def remove_tag(self, tag_name):
+        """Remove a tag from this brief"""
+        try:
+            from .tag import Tag
+            normalized_name = tag_name.strip().lower()
+            tag = Tag.query.filter_by(name=normalized_name).first()
+            
+            if tag and tag in self.tags:
+                self.tags.remove(tag)
+                db.session.commit()
+            
+            return True, None
+        except Exception as e:
+            db.session.rollback()
+            from flask import current_app
+            current_app.logger.error(f"Error removing tag '{tag_name}' from brief {self.id}: {str(e)}")
+            return False, str(e)
+    
+    def get_tag_names(self):
+        """Get list of tag names for this brief"""
+        try:
+            return [tag.name for tag in self.tags.order_by('name').all()]
+        except Exception as e:
+            from flask import current_app
+            current_app.logger.error(f"Error getting tag names for brief {self.id}: {str(e)}")
+            return []
+    
+    @staticmethod
+    def find_by_user_and_tag(user_id, tag_id=None, page=1, per_page=20):
+        """Find all briefs for a user, optionally filtered by tag, with pagination"""
+        try:
+            query = ResearchBrief.query.filter_by(user_id=user_id)
+            
+            if tag_id:
+                query = query.join(ResearchBrief.tags).filter_by(id=tag_id)
+            
+            return query.order_by(ResearchBrief.created_at.desc())\
+                .paginate(page=page, per_page=per_page, error_out=False)
+        except Exception as e:
+            from flask import current_app
+            current_app.logger.error(f"Database error finding briefs for user {user_id} with tag {tag_id}: {str(e)}")
+            return None

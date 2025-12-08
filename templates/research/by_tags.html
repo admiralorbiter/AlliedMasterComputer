@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}Research Briefs by Tags{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/research.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="research-container">
+    <div class="research-header">
+        <h1><i class="fas fa-tags"></i> Research Briefs by Tags</h1>
+        <div class="header-actions">
+            <a href="{{ url_for('research_list') }}" class="btn btn-secondary">
+                <i class="fas fa-list"></i> List View
+            </a>
+            <a href="{{ url_for('research_create') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Create New Brief
+            </a>
+        </div>
+    </div>
+
+    {% if tags_with_briefs or briefs_without_tags %}
+        <!-- Briefs Grouped by Tags -->
+        {% for tag, briefs in tags_with_briefs %}
+            <div class="tag-section">
+                <div class="tag-section-header">
+                    <h2>
+                        <i class="fas fa-tag"></i> 
+                        <a href="{{ url_for('research_list', tag=tag.id) }}" class="tag-link">
+                            {{ tag.name }}
+                        </a>
+                        <span class="tag-count-badge">({{ briefs|length }})</span>
+                    </h2>
+                </div>
+                <div class="briefs-full-list">
+                    {% for brief in briefs %}
+                        <div class="brief-card-full">
+                            <div class="brief-card-full-header">
+                                <h3 class="brief-card-full-title">{{ brief.title }}</h3>
+                                <div class="brief-card-full-meta">
+                                    <span class="meta-item-inline">
+                                        {% if brief.source_type == 'pdf' %}
+                                            <i class="fas fa-file-pdf"></i> PDF
+                                            {% if brief.pdf_filename %}
+                                                - {{ brief.pdf_filename }}
+                                            {% endif %}
+                                        {% else %}
+                                            <i class="fas fa-file-alt"></i> Text
+                                        {% endif %}
+                                    </span>
+                                    <span class="meta-item-inline">
+                                        <i class="fas fa-calendar"></i> {{ brief.created_at.strftime('%Y-%m-%d') }}
+                                    </span>
+                                    <span class="meta-item-inline">
+                                        <a href="{{ url_for('research_view', id=brief.id) }}" class="btn-link">
+                                            <i class="fas fa-external-link-alt"></i> View Full
+                                        </a>
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="brief-card-full-content">
+                                <div class="brief-card-full-section">
+                                    <h4><i class="fas fa-quote-left"></i> Citation</h4>
+                                    <p class="citation-text">{{ brief.citation }}</p>
+                                </div>
+                                
+                                <div class="brief-card-full-section">
+                                    <h4><i class="fas fa-list-ul"></i> Summary</h4>
+                                    <div class="summary-text">
+                                        {% set summary_lines = brief.summary.split('\n') %}
+                                        {% set prev_was_header = false %}
+                                        {% for line in summary_lines %}
+                                            {% set line_stripped = line.strip() %}
+                                            {% if line_stripped %}
+                                                {% if (line_stripped == 'Key Findings:' or line_stripped == 'Main Points:' or 
+                                                       line_stripped == 'Methodology:' or line_stripped == 'Approach:' or
+                                                       line_stripped == 'Conclusions:' or line_stripped == 'Recommendations:' or
+                                                       line_stripped == 'Methodology/Approach:' or line_stripped == 'Conclusions/Recommendations:') %}
+                                                    {% if prev_was_header %}<br>{% endif %}
+                                                    <strong class="summary-section-header">{{ line_stripped }}</strong>
+                                                    {% set prev_was_header = true %}
+                                                {% else %}
+                                                    <span class="summary-line">{{ line }}</span>
+                                                    {% set prev_was_header = false %}
+                                                {% endif %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+
+        <!-- Briefs without tags -->
+        {% if briefs_without_tags %}
+            <div class="tag-section">
+                <div class="tag-section-header">
+                    <h2>
+                        <i class="fas fa-tag"></i> 
+                        <span class="no-tag-label">No Tags</span>
+                        <span class="tag-count-badge">({{ briefs_without_tags|length }})</span>
+                    </h2>
+                </div>
+                <div class="briefs-full-list">
+                    {% for brief in briefs_without_tags %}
+                        <div class="brief-card-full">
+                            <div class="brief-card-full-header">
+                                <h3 class="brief-card-full-title">{{ brief.title }}</h3>
+                                <div class="brief-card-full-meta">
+                                    <span class="meta-item-inline">
+                                        {% if brief.source_type == 'pdf' %}
+                                            <i class="fas fa-file-pdf"></i> PDF
+                                            {% if brief.pdf_filename %}
+                                                - {{ brief.pdf_filename }}
+                                            {% endif %}
+                                        {% else %}
+                                            <i class="fas fa-file-alt"></i> Text
+                                        {% endif %}
+                                    </span>
+                                    <span class="meta-item-inline">
+                                        <i class="fas fa-calendar"></i> {{ brief.created_at.strftime('%Y-%m-%d') }}
+                                    </span>
+                                    <span class="meta-item-inline">
+                                        <a href="{{ url_for('research_view', id=brief.id) }}" class="btn-link">
+                                            <i class="fas fa-external-link-alt"></i> View Full
+                                        </a>
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="brief-card-full-content">
+                                <div class="brief-card-full-section">
+                                    <h4><i class="fas fa-quote-left"></i> Citation</h4>
+                                    <p class="citation-text">{{ brief.citation }}</p>
+                                </div>
+                                
+                                <div class="brief-card-full-section">
+                                    <h4><i class="fas fa-list-ul"></i> Summary</h4>
+                                    <div class="summary-text">
+                                        {% set summary_lines = brief.summary.split('\n') %}
+                                        {% set prev_was_header = false %}
+                                        {% for line in summary_lines %}
+                                            {% set line_stripped = line.strip() %}
+                                            {% if line_stripped %}
+                                                {% if (line_stripped == 'Key Findings:' or line_stripped == 'Main Points:' or 
+                                                       line_stripped == 'Methodology:' or line_stripped == 'Approach:' or
+                                                       line_stripped == 'Conclusions:' or line_stripped == 'Recommendations:' or
+                                                       line_stripped == 'Methodology/Approach:' or line_stripped == 'Conclusions/Recommendations:') %}
+                                                    {% if prev_was_header %}<br>{% endif %}
+                                                    <strong class="summary-section-header">{{ line_stripped }}</strong>
+                                                    {% set prev_was_header = true %}
+                                                {% else %}
+                                                    <span class="summary-line">{{ line }}</span>
+                                                    {% set prev_was_header = false %}
+                                                {% endif %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="empty-state">
+            <i class="fas fa-tags fa-3x"></i>
+            <h3>No Research Briefs Yet</h3>
+            <p>Create your first research brief by uploading a PDF or entering text.</p>
+            <a href="{{ url_for('research_create') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Create Your First Brief
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}
