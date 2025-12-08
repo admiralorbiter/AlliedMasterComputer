@@ -11,7 +11,7 @@ The Research Brief Generator is an AI-powered feature that automatically creates
 - **AI-Powered Analysis**: Uses OpenAI to generate structured briefs with:
   - Descriptive titles
   - Properly formatted citations
-  - Bullet-point summaries of key findings
+  - Well-structured summaries organized into clear sections (Key Findings, Main Points, Methodology, Conclusions/Recommendations)
 - **Database Storage**: All briefs are stored securely in the database
 - **User-Specific**: Each user can only access their own research briefs
 - **Edit & Manage**: Edit, view, and delete your research briefs
@@ -101,12 +101,17 @@ If a brief was created from a PDF upload:
 2. **AI Processing**:
    - Extracted/input text is sent to OpenAI API
    - Uses structured output (JSON mode) for consistent formatting
-   - Generates title, citation, and bullet-point summary
+   - Generates title, citation, and structured summary with organized sections:
+     - Key Findings
+     - Main Points
+     - Methodology/Approach (if applicable)
+     - Conclusions/Recommendations (if applicable)
 
 3. **Storage**:
    - All data is stored in the `research_briefs` database table
    - PDFs are stored as binary data in the database
-   - Source text is preserved for reference
+   - Source text is preserved for reference (extracted text for PDFs, original text for text input)
+   - For PDF-based briefs, the source text is stored but not displayed in the view (since the original PDF is available for download)
 
 ### Database Schema
 
@@ -198,9 +203,10 @@ The system provides clear error messages for common issues:
    - Verify citation format matches your requirements
 
 3. **Summary Review**:
-   - AI-generated summaries are a starting point
-   - Edit to emphasize important points
-   - Add or remove details as needed
+   - AI-generated summaries are structured with clear sections for easy reading
+   - Summaries include: Key Findings, Main Points, Methodology (if applicable), and Conclusions/Recommendations
+   - Edit to emphasize important points or adjust the structure as needed
+   - Sections that aren't applicable will be omitted by the AI
 
 4. **File Management**:
    - Use descriptive titles for easy searching

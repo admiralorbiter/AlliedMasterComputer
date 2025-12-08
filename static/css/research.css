@@ -130,8 +130,41 @@
 
 .summary-text {
     color: var(--raisin-black, #2C1810);
-    line-height: 1.8;
-    white-space: pre-line;
+    line-height: 1.15;
+    margin: 0;
+    padding: 0;
+}
+
+.summary-text br {
+    line-height: 0;
+    margin: 0;
+    padding: 0;
+    display: block;
+    height: 0.2em;
+    content: "";
+}
+
+.summary-section-header {
+    color: var(--dark-purple, #4A2C5A);
+    font-size: 1.05em;
+    font-weight: 600;
+    display: block;
+    margin-top: 0.5rem;
+    margin-bottom: 0.05rem;
+    line-height: 1.15;
+    padding: 0;
+}
+
+.summary-section-header:first-child {
+    margin-top: 0;
+}
+
+.summary-line {
+    display: block;
+    line-height: 1.15;
+    margin: 0;
+    padding: 0;
+    margin-bottom: 0.05em;
 }
 
 .source-text-container {

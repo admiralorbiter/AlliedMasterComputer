@@ -2,6 +2,7 @@
 
 import os
 import json
+import re
 import pdfplumber
 from flask import current_app
 from openai import OpenAI
@@ -131,7 +132,7 @@ def generate_research_brief(text: str, model: str = None) -> Tuple[Optional[Dict
 {{
     "title": "A concise, descriptive title for this research (max 200 characters)",
     "citation": "A properly formatted citation for this source (author, title, publication, date if available, or general format)",
-    "summary": "A bullet-point summary of the key findings, main points, and important information. Use bullet points separated by newlines (\\n). Keep it comprehensive but concise."
+    "summary": "A well-structured bullet-point summary organized into clear sections. The summary field MUST be a plain text string (NOT a JSON object or array). Format it exactly like this example:\\n\\nKey Findings:\\n• First finding here\\n• Second finding here\\n• Third finding here\\n\\nMain Points:\\n• First main point\\n• Second main point\\n• Third main point\\n\\nMethodology/Approach:\\n• Method description if applicable\\n\\nConclusions/Recommendations:\\n• First recommendation\\n• Second recommendation\\n\\nCRITICAL: The summary must be a single plain text string with section headers ending in colons, followed by bullet points (•) on separate lines. Do NOT use JSON objects, arrays, or nested structures for the summary. Do NOT use quotes around section headers or bullet points. Each bullet point must be on its own line starting with •. If a section is not applicable, omit it entirely."
 }}
 
 Text to analyze:
@@ -165,28 +166,133 @@ Text to analyze:
             if field not in brief_data:
                 return None, f"OpenAI response missing required field: {field}"
         
-        # Ensure summary is a string (convert list to bullet points if needed)
-        if isinstance(brief_data['summary'], list):
+        # Ensure summary is a string (handle dict, list, or string formats)
+        if isinstance(brief_data['summary'], dict):
+            # Convert dictionary structure to formatted text
+            formatted_sections = []
+            section_order = ['Key Findings', 'Main Points', 'Methodology/Approach', 'Methodology', 'Approach', 
+                           'Conclusions/Recommendations', 'Conclusions', 'Recommendations']
+            
+            # Process sections in order
+            for section_name in section_order:
+                if section_name in brief_data['summary']:
+                    section_content = brief_data['summary'][section_name]
+                    formatted_sections.append(f"{section_name}:")
+                    
+                    # Handle list of items
+                    if isinstance(section_content, list):
+                        for item in section_content:
+                            item_str = str(item).strip()
+                            # Remove quotes if present
+                            item_str = re.sub(r"^['\"]|['\"]$", '', item_str)
+                            formatted_sections.append(f"• {item_str}")
+                    elif isinstance(section_content, str):
+                        # Split by newlines or bullets if it's a multi-line string
+                        for line in section_content.split('\n'):
+                            line = line.strip()
+                            if line:
+                                line = re.sub(r"^['\"]|['\"]$", '', line)
+                                if not line.startswith('•'):
+                                    formatted_sections.append(f"• {line}")
+                                else:
+                                    formatted_sections.append(line)
+                    
+                    # Don't add blank line - spacing will be handled by CSS margins
+            
+            # Also check for any other keys not in our standard list
+            for key, value in brief_data['summary'].items():
+                if key not in section_order:
+                    formatted_sections.append(f"{key}:")
+                    if isinstance(value, list):
+                        for item in value:
+                            item_str = str(item).strip()
+                            item_str = re.sub(r"^['\"]|['\"]$", '', item_str)
+                            formatted_sections.append(f"• {item_str}")
+                    else:
+                        value_str = str(value).strip()
+                        value_str = re.sub(r"^['\"]|['\"]$", '', value_str)
+                        formatted_sections.append(f"• {value_str}")
+                    # Don't add blank line - spacing will be handled by CSS
+            
+            brief_data['summary'] = '\n'.join(formatted_sections).strip()
+        elif isinstance(brief_data['summary'], list):
             brief_data['summary'] = '\n'.join([f"• {item}" if not item.startswith('•') else item for item in brief_data['summary']])
         elif not isinstance(brief_data['summary'], str):
             brief_data['summary'] = str(brief_data['summary'])
         
-        # Ensure bullet points are properly formatted
-        if '\n' in brief_data['summary']:
-            lines = brief_data['summary'].split('\n')
+        # Format the summary with proper section headers and bullet points
+        summary_text = brief_data['summary']
+        
+        # Clean up any JSON-like formatting artifacts
+        # Remove quotes around section headers and bullet points
+        # Remove quotes around section headers (e.g., 'Key Findings': -> Key Findings:)
+        summary_text = re.sub(r"'([^']+)':", r'\1:', summary_text)
+        # Remove quotes around bullet points
+        summary_text = re.sub(r"'\s*•\s*([^']+)'", r'• \1', summary_text)
+        summary_text = re.sub(r"'\s*-\s*([^']+)'", r'• \1', summary_text)
+        # Remove leading/trailing quotes from lines
+        summary_text = re.sub(r"^'|'$", '', summary_text, flags=re.MULTILINE)
+        
+        if '\n' in summary_text:
+            lines = summary_text.split('\n')
             formatted_lines = []
             for line in lines:
+                original_line = line
                 line = line.strip()
-                if line:
+                
+                if not line:
+                    formatted_lines.append('')  # Preserve blank lines for spacing
+                    continue
+                
+                # Check if this is a section header (ends with colon or matches section names)
+                section_headers = ['Key Findings', 'Main Points', 'Methodology', 'Approach', 
+                                 'Conclusions', 'Recommendations', 'Methodology/Approach', 
+                                 'Conclusions/Recommendations']
+                is_section_header = False
+                clean_header = None
+                
+                for header in section_headers:
+                    # Check various formats: "Key Findings:", "'Key Findings':", etc.
+                    if (line.startswith(header) or line.startswith(f"'{header}'") or 
+                        line.startswith(f'"{header}"')):
+                        # Extract just the header name
+                        clean_header = header
+                        is_section_header = True
+                        break
+                
+                if is_section_header:
+                    # Format as section header
+                    formatted_lines.append(f"{clean_header}:")
+                else:
+                    # Format as bullet point
+                    # Remove any JSON formatting artifacts
+                    line = re.sub(r"^['\"]|['\"]$", '', line)  # Remove surrounding quotes
+                    line = re.sub(r"^\s*['\"]\s*•\s*|^\s*•\s*['\"]", '• ', line)  # Clean bullet points
+                    line = line.strip()
+                    
+                    # Ensure it starts with a bullet point
                     if not line.startswith('•') and not line.startswith('-') and not line.startswith('*'):
+                        # Remove any leading asterisks or other markers
+                        line = re.sub(r'^[\*\-\•\s]+', '', line)
                         formatted_lines.append(f"• {line}")
                     else:
+                        # Clean up existing bullet points
+                        line = re.sub(r'^[\*\-\•\s]+', '• ', line)
                         formatted_lines.append(line)
+            
+            # Join lines and clean up excessive blank lines
             brief_data['summary'] = '\n'.join(formatted_lines)
+            # Remove more than 1 consecutive blank line (keep only single blank lines)
+            brief_data['summary'] = re.sub(r'\n{2,}', '\n', brief_data['summary'])
+            brief_data['summary'] = brief_data['summary'].strip()
         else:
             # Single line summary, add bullet point
-            if brief_data['summary'].strip() and not brief_data['summary'].strip().startswith('•'):
-                brief_data['summary'] = f"• {brief_data['summary'].strip()}"
+            summary_text = summary_text.strip()
+            summary_text = re.sub(r"^['\"]|['\"]$", '', summary_text)  # Remove quotes
+            if summary_text and not summary_text.startswith('•'):
+                brief_data['summary'] = f"• {summary_text}"
+            else:
+                brief_data['summary'] = summary_text
         
         return brief_data, None
         
