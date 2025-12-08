@@ -8,7 +8,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 # Import from modular structure
-from flask_app.models import db, User
+from flask_app.models import db, User, ResearchBrief
 from flask_app.routes import init_routes
 from flask_app.utils.logging_config import setup_logging
 from flask_app.utils.error_handler import init_error_alerting
@@ -34,6 +34,14 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'  # Redirect to 'login' view if unauthorized
 login_manager.login_message_category = 'info'
+
+# Initialize Flask-Migrate (optional, for database migrations)
+try:
+    from flask_migrate import Migrate
+    migrate = Migrate(app, db)
+except ImportError:
+    # Flask-Migrate not installed, continue without it
+    migrate = None
 
 # Register login manager in app extensions for testing
 app.extensions['login_manager'] = login_manager

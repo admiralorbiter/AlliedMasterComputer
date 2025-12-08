@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Research Brief{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/research.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="research-container">
+    <div class="research-header">
+        <h1>Edit Research Brief</h1>
+        <a href="{{ url_for('research_view', id=brief.id) }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Brief
+        </a>
+    </div>
+
+    <div class="research-form-card">
+        <form method="POST">
+            {{ form.hidden_tag() }}
+            
+            <div class="form-section">
+                <div class="form-group">
+                    {{ form.title.label(class="form-label") }}
+                    {{ form.title(class="form-control") }}
+                    {% if form.title.errors %}
+                        <div class="text-danger">
+                            {% for error in form.title.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-group">
+                    {{ form.citation.label(class="form-label") }}
+                    {{ form.citation(class="form-control") }}
+                    {% if form.citation.errors %}
+                        <div class="text-danger">
+                            {% for error in form.citation.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-group">
+                    {{ form.summary.label(class="form-label") }}
+                    {{ form.summary(class="form-control") }}
+                    <small class="form-text text-muted">Use bullet points (•) or new lines for each point.</small>
+                    {% if form.summary.errors %}
+                        <div class="text-danger">
+                            {% for error in form.summary.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-actions">
+                {{ form.submit(class="btn btn-primary btn-lg") }}
+                <a href="{{ url_for('research_view', id=brief.id) }}" class="btn btn-secondary btn-lg">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}

@@ -56,3 +56,5 @@ class User(BaseModel, UserMixin):
         except SQLAlchemyError as e:
             current_app.logger.error(f"Database error finding user by email {email}: {str(e)}")
             return None
+    
+    # Relationship to ResearchBrief is defined in ResearchBrief model via backref

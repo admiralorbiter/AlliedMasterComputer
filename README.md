@@ -6,6 +6,7 @@ A personal utility suite built with Flask to help streamline various tasks in da
 
 - **Secure Authentication**: User login system with role-based access control
 - **Admin Dashboard**: Comprehensive admin panel for user management and system monitoring
+- **Research Brief Generator**: AI-powered tool to generate structured research briefs from PDFs or text using OpenAI
 - **Utility Tools**: Platform for hosting various utility applications and tools
 - **Logging & Monitoring**: Built-in logging and error tracking system
 - **Modern UI**: Clean, responsive interface with a professional design
@@ -33,6 +34,7 @@ pip install -r requirements.txt
 3. Set up environment variables:
    - Create a `.env` file in the root directory
    - Configure your database and secret key settings
+   - For Research Brief feature: Set `OPENAI_API_KEY` (optional: `OPENAI_MODEL`, defaults to 'gpt-4-turbo')
 
 4. Initialize the database:
 ```bash
@@ -89,6 +91,11 @@ Or use pytest directly:
 ```bash
 pytest
 ```
+
+## Documentation
+
+For detailed documentation on specific features, see the [docs](docs/) directory:
+- [Research Brief Generator](docs/research-brief-generator.md) - Complete guide to the AI-powered research brief feature
 
 ## License
 

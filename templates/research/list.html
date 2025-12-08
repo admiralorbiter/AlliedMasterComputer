@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Research Briefs{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/research.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="research-container">
+    <div class="research-header">
+        <h1>Research Briefs</h1>
+        <a href="{{ url_for('research_create') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Create New Brief
+        </a>
+    </div>
+
+    {% if briefs and briefs.items %}
+    <!-- Briefs Table -->
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Citation</th>
+                    <th>Source Type</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for brief in briefs.items %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('research_view', id=brief.id) }}" class="brief-link">
+                            {{ brief.title[:80] }}{% if brief.title|length > 80 %}...{% endif %}
+                        </a>
+                    </td>
+                    <td class="citation-cell">
+                        {{ brief.citation[:100] }}{% if brief.citation|length > 100 %}...{% endif %}
+                    </td>
+                    <td>
+                        {% if brief.source_type == 'pdf' %}
+                            <span class="badge badge-info">
+                                <i class="fas fa-file-pdf"></i> PDF
+                            </span>
+                        {% else %}
+                            <span class="badge badge-secondary">
+                                <i class="fas fa-file-alt"></i> Text
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td>{{ brief.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>
+                        <div class="btn-group" role="group">
+                            <a href="{{ url_for('research_view', id=brief.id) }}" 
+                               class="btn btn-sm btn-outline-primary" title="View">
+                                <i class="fas fa-eye"></i>
+                                <span class="btn-text">View</span>
+                            </a>
+                            <a href="{{ url_for('research_edit', id=brief.id) }}" 
+                               class="btn btn-sm btn-outline-secondary" title="Edit">
+                                <i class="fas fa-edit"></i>
+                                <span class="btn-text">Edit</span>
+                            </a>
+                            {% if brief.source_type == 'pdf' %}
+                            <a href="{{ url_for('research_download', id=brief.id) }}" 
+                               class="btn btn-sm btn-outline-info" title="Download PDF">
+                                <i class="fas fa-download"></i>
+                                <span class="btn-text">PDF</span>
+                            </a>
+                            {% endif %}
+                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                    onclick="confirmDelete({{ brief.id }}, '{{ brief.title[:50]|replace("'", "\\'") }}')" title="Delete">
+                                <i class="fas fa-trash"></i>
+                                <span class="btn-text">Del</span>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if briefs.pages > 1 %}
+    <nav aria-label="Research briefs pagination">
+        <ul class="pagination justify-content-center">
+            {% if briefs.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('research_list', page=briefs.prev_num) }}">Previous</a>
+                </li>
+            {% endif %}
+            
+            {% for page_num in briefs.iter_pages() %}
+                {% if page_num %}
+                    {% if page_num != briefs.page %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('research_list', page=page_num) }}">{{ page_num }}</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                    {% endif %}
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if briefs.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('research_list', page=briefs.next_num) }}">Next</a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-file-alt fa-3x"></i>
+        <h3>No Research Briefs Yet</h3>
+        <p>Create your first research brief by uploading a PDF or entering text.</p>
+        <a href="{{ url_for('research_create') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Create Your First Brief
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Deletion</h5>
+                <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the research brief <strong id="deleteTitle"></strong>?</p>
+                <p class="text-danger">This action cannot be undone!</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Delete Brief</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<script>
+function confirmDelete(briefId, title) {
+    document.getElementById('deleteTitle').textContent = title;
+    document.getElementById('deleteForm').action = "{{ url_for('research_delete', id=0) }}".replace('0', briefId);
+    var modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    modal.show();
+}
+</script>
+{% endblock %}

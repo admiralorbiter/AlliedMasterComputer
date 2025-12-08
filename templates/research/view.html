@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}{{ brief.title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/research.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="research-container">
+    <div class="research-header">
+        <h1>{{ brief.title }}</h1>
+        <div class="header-actions">
+            <a href="{{ url_for('research_edit', id=brief.id) }}" class="btn btn-secondary">
+                <i class="fas fa-edit"></i> Edit
+            </a>
+            {% if brief.source_type == 'pdf' %}
+            <a href="{{ url_for('research_download', id=brief.id) }}" class="btn btn-info">
+                <i class="fas fa-download"></i> Download PDF
+            </a>
+            {% endif %}
+            <a href="{{ url_for('research_list') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to List
+            </a>
+        </div>
+    </div>
+
+    <div class="brief-card">
+        <div class="brief-meta">
+            <div class="meta-item">
+                <strong>Source Type:</strong>
+                {% if brief.source_type == 'pdf' %}
+                    <span class="badge badge-info">
+                        <i class="fas fa-file-pdf"></i> PDF
+                        {% if brief.pdf_filename %}
+                            - {{ brief.pdf_filename }}
+                        {% endif %}
+                    </span>
+                {% else %}
+                    <span class="badge badge-secondary">
+                        <i class="fas fa-file-alt"></i> Text
+                    </span>
+                {% endif %}
+            </div>
+            <div class="meta-item">
+                <strong>Created:</strong> {{ brief.created_at.strftime('%Y-%m-%d %H:%M') }}
+            </div>
+            {% if brief.updated_at != brief.created_at %}
+            <div class="meta-item">
+                <strong>Last Updated:</strong> {{ brief.updated_at.strftime('%Y-%m-%d %H:%M') }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="brief-section">
+            <h2>Citation</h2>
+            <div class="brief-content">
+                <p class="citation-text">{{ brief.citation }}</p>
+            </div>
+        </div>
+
+        <div class="brief-section">
+            <h2>Summary</h2>
+            <div class="brief-content">
+                <div class="summary-text">
+                    {{ brief.summary|replace('\n', '<br>')|safe }}
+                </div>
+            </div>
+        </div>
+
+        {% if brief.source_text %}
+        <div class="brief-section">
+            <h2>Source Text</h2>
+            <div class="brief-content">
+                <div class="source-text-container">
+                    <pre class="source-text">{{ brief.source_text[:2000] }}{% if brief.source_text|length > 2000 %}... (truncated){% endif %}</pre>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="brief-actions">
+            <a href="{{ url_for('research_edit', id=brief.id) }}" class="btn btn-primary">
+                <i class="fas fa-edit"></i> Edit Brief
+            </a>
+            <form method="POST" action="{{ url_for('research_delete', id=brief.id) }}" 
+                  style="display: inline;" 
+                  onsubmit="return confirm('Are you sure you want to delete this research brief? This action cannot be undone.');">
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> Delete Brief
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}

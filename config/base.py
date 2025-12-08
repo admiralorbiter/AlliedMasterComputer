@@ -14,6 +14,14 @@ class Config:
     
     # CSRF protection
     WTF_CSRF_ENABLED = True
+    
+    # OpenAI configuration
+    OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+    OPENAI_MODEL = os.environ.get('OPENAI_MODEL', 'gpt-4-turbo')
+    
+    # File upload configuration
+    MAX_CONTENT_LENGTH = 25 * 1024 * 1024  # 25 MB
+    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', 'uploads')  # Optional, for temporary storage if needed
 
 class DevelopmentConfig(Config):
     DEBUG = True
