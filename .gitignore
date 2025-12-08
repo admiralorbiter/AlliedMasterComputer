@@ -62,7 +62,7 @@ db.sqlite3
 db.sqlite3-journal
 
 # Flask stuff:
-instance/
+# instance/
 .webassets-cache
 
 # Scrapy stuff:
@@ -130,7 +130,7 @@ dmypy.json
 
 # Project specific
 logs/
-*.db
+# *.db
 .DS_Store
 .vscode/
 .idea/
