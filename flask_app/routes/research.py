@@ -70,7 +70,22 @@ def register_research_routes(app):
                 )
                 
                 if error:
+                    current_app.logger.error(f"Error generating research brief: {error}")
                     flash(f'Error generating brief: {error}', 'danger')
+                    return render_template('research/create.html', form=form)
+                
+                # Validate brief_data exists and has required fields
+                if not brief_data:
+                    current_app.logger.error("process_research_brief returned None for brief_data without error")
+                    flash('Error generating brief: No data returned from AI service. Please try again.', 'danger')
+                    return render_template('research/create.html', form=form)
+                
+                # Validate required fields exist
+                required_fields = ['title', 'citation', 'summary', 'source_text']
+                missing_fields = [field for field in required_fields if field not in brief_data]
+                if missing_fields:
+                    current_app.logger.error(f"Missing required fields in brief_data: {missing_fields}")
+                    flash(f'Error generating brief: Missing required fields: {", ".join(missing_fields)}. Please try again.', 'danger')
                     return render_template('research/create.html', form=form)
                 
                 # Create the research brief record
@@ -82,7 +97,8 @@ def register_research_routes(app):
                     source_text=brief_data['source_text'],
                     pdf_filename=pdf_filename,
                     pdf_data=pdf_data,
-                    source_type=form.source_type.data
+                    source_type=form.source_type.data,
+                    model_name=brief_data.get('model_name')  # Store the model used
                 )
                 
                 if db_error:
@@ -96,8 +112,10 @@ def register_research_routes(app):
             return render_template('research/create.html', form=form)
             
         except Exception as e:
-            current_app.logger.error(f"Error in research create: {str(e)}")
-            flash('An error occurred while creating the research brief.', 'danger')
+            import traceback
+            current_app.logger.error(f"Unexpected error in research create: {str(e)}")
+            current_app.logger.error(f"Traceback: {traceback.format_exc()}")
+            flash(f'An unexpected error occurred while creating the research brief: {str(e)}', 'danger')
             return render_template('research/create.html', form=form)
     
     @app.route('/research/<int:id>')

@@ -42,6 +42,14 @@
                     </span>
                 {% endif %}
             </div>
+            {% if brief.model_name %}
+            <div class="meta-item">
+                <strong>Model:</strong>
+                <span class="badge badge-model">
+                    <i class="fas fa-robot"></i> {{ brief.model_name }}
+                </span>
+            </div>
+            {% endif %}
             <div class="meta-item">
                 <strong>Created:</strong> {{ brief.created_at.strftime('%Y-%m-%d %H:%M') }}
             </div>

@@ -252,6 +252,17 @@
     color: #000;
 }
 
+.badge-primary {
+    background-color: #0d6efd;
+    color: #fff;
+}
+
+/* Model badge - ensure good contrast */
+.badge-model {
+    background-color: #4A2C5A;
+    color: #fff;
+}
+
 /* Empty State */
 .empty-state {
     text-align: center;

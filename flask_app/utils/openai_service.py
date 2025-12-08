@@ -140,18 +140,38 @@ Text to analyze:
         
         # Determine if model supports JSON mode
         # Models that support response_format json_object:
-        # gpt-4o, gpt-4o-mini, gpt-4-turbo-preview, gpt-4-0125-preview, gpt-3.5-turbo-0125
-        # and newer versions of gpt-4-turbo (after 2024-04-09)
+        # GPT-5 models: gpt-5.1, gpt-5, gpt-5-mini, gpt-5-nano, gpt-5-pro, gpt-5-codex variants
+        # GPT-4.1 models: gpt-4.1, gpt-4.1-mini, gpt-4.1-nano
+        # GPT-4o models: gpt-4o, gpt-4o-mini
+        # GPT-4 turbo models: gpt-4-turbo-preview, gpt-4-0125-preview, dated versions
+        # GPT-3.5: gpt-3.5-turbo-0125
         # Note: Older models like gpt-4-turbo (without date) may not support it
         model_lower = model.lower()
-        json_mode_models = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo-preview', 'gpt-4-0125-preview', 
-                           'gpt-3.5-turbo-0125', 'gpt-4-turbo-2024-04-09', 'gpt-4-turbo-2024-08-06',
-                           'gpt-4-turbo-2024-11-20']
+        json_mode_models = [
+            # GPT-5 models
+            'gpt-5.1', 'gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-pro',
+            'gpt-5.1-codex-max', 'gpt-5.1-codex', 'gpt-5-codex', 'gpt-5.1-codex-mini',
+            'gpt-5.1-chat-latest', 'gpt-5-chat-latest',
+            # GPT-4.1 models
+            'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano',
+            # GPT-4o models
+            'gpt-4o', 'gpt-4o-mini',
+            # GPT-4 turbo models
+            'gpt-4-turbo-preview', 'gpt-4-0125-preview', 
+            'gpt-4-turbo-2024-04-09', 'gpt-4-turbo-2024-08-06', 'gpt-4-turbo-2024-11-20',
+            # GPT-3.5 models
+            'gpt-3.5-turbo-0125'
+        ]
         supports_json_mode = (
             any(model_lower.startswith(m.lower()) for m in json_mode_models) or
+            'gpt-5' in model_lower or  # All GPT-5 models support JSON mode
+            'gpt-4.1' in model_lower or  # All GPT-4.1 models support JSON mode
             'gpt-4o' in model_lower or
             ('gpt-4-turbo' in model_lower and '-' in model)  # Date-suffixed versions
         )
+        
+        # Determine if this is a GPT-5 model (uses max_completion_tokens instead of max_tokens)
+        is_gpt5_model = 'gpt-5' in model_lower
         
         # Build API call parameters
         api_params = {
@@ -166,33 +186,105 @@ Text to analyze:
                     "content": prompt
                 }
             ],
-            "temperature": 0.3,
-            "max_tokens": 2000
+            "temperature": 0.3
         }
+        
+        # GPT-5 models use max_completion_tokens, others use max_tokens
+        # Increase limit for GPT-5 models as they may need more tokens for complex responses
+        if is_gpt5_model:
+            api_params["max_completion_tokens"] = 4000  # Increased for GPT-5 models
+        else:
+            api_params["max_tokens"] = 2000
         
         # Only add response_format if model supports it
         if supports_json_mode:
             api_params["response_format"] = {"type": "json_object"}
         
         # Call OpenAI API with structured output
-        # If response_format is not supported, retry without it
+        # Handle parameter compatibility issues with automatic retry
         try:
             response = client.chat.completions.create(**api_params)
         except Exception as e:
             error_str = str(e)
+            retry_needed = False
+            
             # Check if error is about response_format not being supported
             if "response_format" in error_str.lower() and "not supported" in error_str.lower() and "response_format" in api_params:
-                # Retry without response_format
                 current_app.logger.warning(f"Model {model} does not support response_format, retrying without it")
                 api_params.pop("response_format", None)
+                retry_needed = True
+            
+            # Check if error is about max_tokens not being supported (GPT-5 models need max_completion_tokens)
+            elif "max_tokens" in error_str.lower() and "not supported" in error_str.lower() and "max_completion_tokens" in error_str.lower():
+                current_app.logger.warning(f"Model {model} requires max_completion_tokens instead of max_tokens, retrying with correct parameter")
+                max_tokens_value = api_params.pop("max_tokens", 2000)
+                api_params["max_completion_tokens"] = max_tokens_value
+                retry_needed = True
+            
+            # Check if error is about max_completion_tokens not being supported (older models need max_tokens)
+            elif "max_completion_tokens" in error_str.lower() and "not supported" in error_str.lower():
+                current_app.logger.warning(f"Model {model} requires max_tokens instead of max_completion_tokens, retrying with correct parameter")
+                max_completion_value = api_params.pop("max_completion_tokens", 2000)
+                api_params["max_tokens"] = max_completion_value
+                retry_needed = True
+            
+            if retry_needed:
                 response = client.chat.completions.create(**api_params)
             else:
                 # Re-raise if it's a different error
                 raise
         
         # Parse the response
-        response_text = response.choices[0].message.content
-        brief_data = json.loads(response_text)
+        if not response.choices or len(response.choices) == 0:
+            current_app.logger.error(f"OpenAI API returned no choices. Model: {model}, Response: {response}")
+            return None, "OpenAI API returned no response choices"
+        
+        choice = response.choices[0]
+        message = choice.message
+        finish_reason = getattr(choice, 'finish_reason', None)
+        
+        # Log finish reason for debugging
+        if finish_reason:
+            current_app.logger.info(f"OpenAI API finish_reason: {finish_reason} for model {model}")
+        
+        # Check if response was cut off
+        if finish_reason == 'length':
+            current_app.logger.warning(f"OpenAI API response was cut off due to token limit. Model: {model}")
+            return None, "OpenAI API response was cut off due to token limit. The response may be incomplete. Try reducing the input text size or increasing max_completion_tokens."
+        
+        if finish_reason == 'content_filter':
+            current_app.logger.warning(f"OpenAI API response was filtered. Model: {model}")
+            return None, "OpenAI API response was filtered. Please try again with different content."
+        
+        if not message:
+            current_app.logger.error(f"OpenAI API returned no message. Model: {model}, Choice: {choice}")
+            return None, "OpenAI API returned no message in response"
+        
+        if not message.content:
+            # Log more details about what we got
+            current_app.logger.error(
+                f"OpenAI API returned empty content. Model: {model}, "
+                f"Finish reason: {finish_reason}, "
+                f"Message object: {message}, "
+                f"Response object keys: {dir(response)}"
+            )
+            return None, f"OpenAI API returned empty response content (finish_reason: {finish_reason}). This may indicate the model stopped generating. Please try again."
+        
+        response_text = message.content.strip()
+        if not response_text:
+            current_app.logger.error(f"OpenAI API returned empty response text after strip. Model: {model}, Original content: {repr(message.content)}")
+            return None, "OpenAI API returned empty response text"
+        
+        try:
+            brief_data = json.loads(response_text)
+        except json.JSONDecodeError as e:
+            # Log the full response for debugging (truncated to avoid log spam)
+            current_app.logger.error(
+                f"Failed to parse OpenAI response as JSON. "
+                f"Model: {model}, Response length: {len(response_text)}, "
+                f"First 500 chars: {response_text[:500]}, Error: {str(e)}"
+            )
+            return None, f"OpenAI API returned invalid JSON. The model may not have returned properly formatted JSON. Please try again or use a different model."
         
         # Validate required fields
         required_fields = ['title', 'citation', 'summary']
@@ -328,6 +420,9 @@ Text to analyze:
             else:
                 brief_data['summary'] = summary_text
         
+        # Add model name to the response
+        brief_data['model_name'] = model
+        
         return brief_data, None
         
     except json.JSONDecodeError as e:
@@ -409,6 +504,10 @@ def process_research_brief(source_text: str = None, pdf_data: bytes = None, pdf_
         brief_data, error = generate_research_brief(source_text)
         if error:
             return None, error
+        
+        # Validate brief_data was returned
+        if not brief_data:
+            return None, "OpenAI API returned no data. Please try again."
         
         # Add source text to the brief data for storage
         brief_data['source_text'] = source_text
