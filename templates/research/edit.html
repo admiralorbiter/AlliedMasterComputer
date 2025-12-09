@@ -49,6 +49,21 @@
 
             <div class="form-section">
                 <div class="form-group">
+                    {{ form.url.label(class="form-label") }}
+                    {{ form.url(class="form-control") }}
+                    <small class="form-text text-muted">Enter the URL to the source article (optional, but recommended for easy access).</small>
+                    {% if form.url.errors %}
+                        <div class="text-danger">
+                            {% for error in form.url.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-group">
                     {{ form.summary.label(class="form-label") }}
                     {{ form.summary(class="form-control") }}
                     <small class="form-text text-muted">Use bullet points (•) or new lines for each point.</small>

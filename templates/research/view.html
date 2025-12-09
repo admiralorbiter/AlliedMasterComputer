@@ -11,6 +11,11 @@
     <div class="research-header">
         <h1>{{ brief.title }}</h1>
         <div class="header-actions">
+            {% if brief.url %}
+            <a href="{{ brief.url }}" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+                <i class="fas fa-external-link-alt"></i> Open Article
+            </a>
+            {% endif %}
             <a href="{{ url_for('research_edit', id=brief.id) }}" class="btn btn-secondary">
                 <i class="fas fa-edit"></i> Edit
             </a>
@@ -36,6 +41,10 @@
                             - {{ brief.pdf_filename }}
                         {% endif %}
                     </span>
+                {% elif brief.source_type == 'manual' %}
+                    <span class="badge badge-warning">
+                        <i class="fas fa-edit"></i> Manual Entry
+                    </span>
                 {% else %}
                     <span class="badge badge-secondary">
                         <i class="fas fa-file-alt"></i> Text
@@ -44,7 +53,7 @@
             </div>
             {% if brief.model_name %}
             <div class="meta-item">
-                <strong>Model:</strong>
+                <strong>{% if brief.source_type == 'manual' %}Source:{% else %}Model:{% endif %}</strong>
                 <span class="badge badge-model">
                     <i class="fas fa-robot"></i> {{ brief.model_name }}
                 </span>
@@ -106,7 +115,7 @@
             </div>
         </div>
 
-        {% if brief.source_text and brief.source_type == 'text' %}
+        {% if brief.source_text and (brief.source_type == 'text' or brief.source_type == 'manual') %}
         <div class="brief-section">
             <h2>Source Text</h2>
             <div class="brief-content">

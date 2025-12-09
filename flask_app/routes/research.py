@@ -134,6 +134,34 @@ def register_research_routes(app):
                     current_app.logger.info(f"Research brief {new_brief.id} created by {current_user.username}")
                     return redirect(url_for('research_view', id=new_brief.id))
                 
+                # Handle manual entry (no AI processing)
+                elif form.source_type.data == 'manual':
+                    # Create the research brief directly from form data
+                    new_brief, db_error = ResearchBrief.safe_create(
+                        user_id=current_user.id,
+                        title=form.title.data.strip(),
+                        citation=form.citation.data.strip(),
+                        summary=form.summary.data.strip(),
+                        source_text=form.manual_source_text.data.strip() if form.manual_source_text.data else '',
+                        url=form.url.data.strip() if form.url.data else None,
+                        pdf_filename=None,
+                        pdf_data=None,
+                        source_type='manual',
+                        model_name=form.source_name.data if form.source_name.data else None
+                    )
+                    
+                    if db_error:
+                        flash(f'Error saving brief: {db_error}', 'danger')
+                        return render_template('research/create.html', form=form)
+                    
+                    # Add tags if provided
+                    if form.tags.data:
+                        add_tags_to_brief(new_brief, form.tags.data)
+                    
+                    flash('Research brief created successfully!', 'success')
+                    current_app.logger.info(f"Manual research brief {new_brief.id} created by {current_user.username}")
+                    return redirect(url_for('research_view', id=new_brief.id))
+                
                 # Handle PDF upload(s) - supports both single and multiple files
                 elif form.source_type.data == 'pdf':
                     # Get files from request (Flask-WTF FileField doesn't handle multiple files well)
@@ -354,7 +382,8 @@ def register_research_routes(app):
                 success, error = brief.safe_update(
                     title=form.title.data.strip(),
                     citation=form.citation.data.strip(),
-                    summary=form.summary.data.strip()
+                    summary=form.summary.data.strip(),
+                    url=form.url.data.strip() if form.url.data else None
                 )
                 
                 if error:

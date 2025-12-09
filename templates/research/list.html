@@ -96,6 +96,10 @@
                             <span class="badge badge-info">
                                 <i class="fas fa-file-pdf"></i> PDF
                             </span>
+                        {% elif brief.source_type == 'manual' %}
+                            <span class="badge badge-warning">
+                                <i class="fas fa-edit"></i> Manual
+                            </span>
                         {% else %}
                             <span class="badge badge-secondary">
                                 <i class="fas fa-file-alt"></i> Text

@@ -77,6 +77,157 @@
                 </div>
             </div>
 
+            <div class="form-section" id="manualSection" style="display: none;">
+                <h3>Manual Entry</h3>
+                <p class="text-muted">Paste the formatted content from ChatGPT or another source into the fields below.</p>
+                
+                <div class="form-group">
+                    {{ form.title.label(class="form-label") }}
+                    {{ form.title(class="form-control") }}
+                    {% if form.title.errors %}
+                        <div class="text-danger">
+                            {% for error in form.title.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    {{ form.citation.label(class="form-label") }}
+                    {{ form.citation(class="form-control") }}
+                    {% if form.citation.errors %}
+                        <div class="text-danger">
+                            {% for error in form.citation.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    {{ form.url.label(class="form-label") }}
+                    {{ form.url(class="form-control") }}
+                    <small class="form-text text-muted">Enter the URL to the source article (optional, but recommended for easy access).</small>
+                    {% if form.url.errors %}
+                        <div class="text-danger">
+                            {% for error in form.url.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    {{ form.summary.label(class="form-label") }}
+                    {{ form.summary(class="form-control") }}
+                    <small class="form-text text-muted">Enter the summary with bullet points or structured sections.</small>
+                    {% if form.summary.errors %}
+                        <div class="text-danger">
+                            {% for error in form.summary.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    {{ form.manual_source_text.label(class="form-label") }}
+                    {{ form.manual_source_text(class="form-control") }}
+                    <small class="form-text text-muted">Paste the original article or source text here.</small>
+                    {% if form.manual_source_text.errors %}
+                        <div class="text-danger">
+                            {% for error in form.manual_source_text.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    {{ form.source_name.label(class="form-label") }}
+                    {{ form.source_name(class="form-control") }}
+                    <small class="form-text text-muted">Select the source where you formatted this brief (optional).</small>
+                    {% if form.source_name.errors %}
+                        <div class="text-danger">
+                            {% for error in form.source_name.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-section" id="aiPromptSection" style="display: none;">
+                <h3>AI Prompt Helper</h3>
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-robot"></i> Copyable AI Prompt Template</span>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="copyAIPrompt()">
+                            <i class="fas fa-copy"></i> Copy Prompt
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">Use this prompt template with ChatGPT or another AI assistant to format an article into a structured research brief:</p>
+                        <pre id="aiPromptText" class="bg-light p-3 rounded" style="white-space: pre-wrap; word-wrap: break-word; max-height: 400px; overflow-y: auto;">Please format the following article into a structured research brief with the following sections:
+
+**Title**: A clear, concise title for the research brief
+
+**Citation**: Full citation in standard format (e.g., Author(s). "Title." Journal/Publication, Year, Volume(Issue), Pages. DOI/URL if available)
+
+**Summary**: A comprehensive summary organized with:
+- Key Findings: (bullet points)
+- Main Points: (bullet points)
+- Methodology/Approach: (if applicable)
+- Conclusions/Recommendations: (if applicable)
+
+**Source Text**: The complete, unedited original article text
+
+Please ensure:
+1. The title is descriptive and captures the essence of the article
+2. The citation follows standard academic or publication formatting
+3. The summary uses clear bullet points and is well-organized
+4. The source text is the complete, unaltered original article
+
+Note: After formatting, you can also add the article URL in the separate URL field for easy access.
+
+Here is the article to format:
+
+[Paste your article text here]</pre>
+                        <div id="copyFeedback" class="alert alert-success mt-2" style="display: none;">
+                            <i class="fas fa-check-circle"></i> Prompt copied to clipboard!
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <span><i class="fas fa-info-circle"></i> Expected Format</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">The AI should return a response in this format:</p>
+                        <pre class="bg-light p-3 rounded" style="white-space: pre-wrap; word-wrap: break-word;">**Title**: [Brief title here]
+
+**Citation**: [Full citation here]
+
+**Summary**: 
+Key Findings:
+• [Key finding 1]
+• [Key finding 2]
+
+Main Points:
+• [Main point 1]
+• [Main point 2]
+
+[Additional sections as needed]
+
+**Source Text**: 
+[Complete original article text here]</pre>
+                        <p class="card-text mt-2"><small class="text-muted">Once you have the formatted output from the AI, paste each section into the corresponding fields above.</small></p>
+                    </div>
+                </div>
+            </div>
+
             <div class="form-section">
                 <h3>Tags (Optional)</h3>
                 <div class="form-group">
@@ -94,7 +245,9 @@
             </div>
 
             <div class="form-actions">
-                {{ form.submit(class="btn btn-primary btn-lg") }}
+                <button type="submit" class="btn btn-primary btn-lg" id="submitButton">
+                    <span id="submitText">Generate Brief</span>
+                </button>
                 <a href="{{ url_for('research_list') }}" class="btn btn-secondary btn-lg">Cancel</a>
             </div>
         </form>
@@ -173,19 +326,55 @@ document.addEventListener('DOMContentLoaded', function() {
     const textSection = document.getElementById('textSection');
     const form = document.getElementById('briefForm');
 
+    const manualSection = document.getElementById('manualSection');
+    const aiPromptSection = document.getElementById('aiPromptSection');
+    const submitButton = document.getElementById('submitButton');
+    const submitText = document.getElementById('submitText');
+
+    // Copy AI prompt to clipboard
+    function copyAIPrompt() {
+        const promptText = document.getElementById('aiPromptText').textContent;
+        navigator.clipboard.writeText(promptText).then(function() {
+            const feedback = document.getElementById('copyFeedback');
+            feedback.style.display = 'block';
+            setTimeout(function() {
+                feedback.style.display = 'none';
+            }, 2000);
+        }).catch(function(err) {
+            console.error('Failed to copy: ', err);
+            alert('Failed to copy prompt. Please manually select and copy the text.');
+        });
+    }
+    window.copyAIPrompt = copyAIPrompt;
+
     // Toggle sections based on source type
     function updateSections() {
         const selectedType = document.querySelector('input[name="source_type"]:checked').value;
+        
         if (selectedType === 'pdf') {
             pdfSection.style.display = 'block';
             textSection.style.display = 'none';
+            manualSection.style.display = 'none';
+            aiPromptSection.style.display = 'none';
             document.getElementById('source_text').required = false;
             document.getElementById('pdf_file').required = true;
+            submitText.textContent = 'Generate Brief';
+        } else if (selectedType === 'manual') {
+            pdfSection.style.display = 'none';
+            textSection.style.display = 'none';
+            manualSection.style.display = 'block';
+            aiPromptSection.style.display = 'block';
+            document.getElementById('source_text').required = false;
+            document.getElementById('pdf_file').required = false;
+            submitText.textContent = 'Create Brief';
         } else {
             pdfSection.style.display = 'none';
             textSection.style.display = 'block';
+            manualSection.style.display = 'none';
+            aiPromptSection.style.display = 'none';
             document.getElementById('source_text').required = true;
             document.getElementById('pdf_file').required = false;
+            submitText.textContent = 'Generate Brief';
         }
     }
 
@@ -258,9 +447,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     statusText.textContent = 'Processing file...';
                 }
             }
-        } else {
+        } else if (selectedType === 'text') {
             document.getElementById('loadingOverlay').style.display = 'flex';
         }
+        // Manual entry doesn't show loading overlay (instant save)
     });
 });
 </script>

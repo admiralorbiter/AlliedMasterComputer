@@ -21,11 +21,12 @@ class ResearchBrief(BaseModel):
     citation = db.Column(db.String(1000), nullable=False)
     summary = db.Column(db.Text, nullable=False)  # Bullet points stored as text
     source_text = db.Column(db.Text, nullable=False)  # Extracted text from PDF or user input
+    url = db.Column(db.String(500), nullable=True)  # URL to the source article or document
     pdf_filename = db.Column(db.String(255), nullable=True)  # Original filename if PDF uploaded
     pdf_data = db.Column(db.LargeBinary, nullable=True)  # PDF file stored as binary
     content_hash = db.Column(db.String(64), nullable=True, index=True)  # MD5 hash of PDF content for duplicate detection
-    source_type = db.Column(db.String(10), nullable=False)  # 'pdf' or 'text'
-    model_name = db.Column(db.String(50), nullable=True)  # OpenAI model used to generate the brief
+    source_type = db.Column(db.String(20), nullable=False)  # 'pdf', 'text', or 'manual'
+    model_name = db.Column(db.String(50), nullable=True)  # OpenAI model used to generate the brief or source name for manual entries
     
     # Relationship to User
     user = db.relationship('User', backref=db.backref('research_briefs', lazy='dynamic', cascade='all, delete-orphan'))

@@ -2,14 +2,14 @@
 
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed
-from wtforms import StringField, TextAreaField, SubmitField, RadioField
-from wtforms.validators import DataRequired, Length, ValidationError, Optional
+from wtforms import StringField, TextAreaField, SubmitField, RadioField, SelectField, URLField
+from wtforms.validators import DataRequired, Length, ValidationError, Optional, URL
 
 class ResearchBriefForm(FlaskForm):
     """Form for creating a new research brief"""
     source_type = RadioField(
         'Input Type',
-        choices=[('pdf', 'Upload PDF'), ('text', 'Enter Text')],
+        choices=[('pdf', 'Upload PDF'), ('text', 'Enter Text'), ('manual', 'Manual Entry')],
         validators=[DataRequired(message="Please select an input type.")],
         default='text'
     )
@@ -32,6 +32,77 @@ class ResearchBriefForm(FlaskForm):
         render_kw={
             "placeholder": "Paste or type your source text here (minimum 50 characters)",
             "rows": 10
+        }
+    )
+    
+    # Manual entry fields
+    title = StringField(
+        'Title',
+        validators=[
+            Optional(),
+            Length(max=500, message="Title must be less than 500 characters.")
+        ],
+        render_kw={
+            "placeholder": "Enter the research brief title"
+        }
+    )
+    
+    citation = StringField(
+        'Citation',
+        validators=[
+            Optional(),
+            Length(max=1000, message="Citation must be less than 1000 characters.")
+        ],
+        render_kw={
+            "placeholder": "Enter the citation (e.g., Author, Title, Journal, Year)"
+        }
+    )
+    
+    summary = TextAreaField(
+        'Summary',
+        validators=[
+            Optional()
+        ],
+        render_kw={
+            "placeholder": "Enter the summary with bullet points",
+            "rows": 15
+        }
+    )
+    
+    manual_source_text = TextAreaField(
+        'Source Article Text',
+        validators=[
+            Optional(),
+            Length(min=1, message="Source text cannot be empty.")
+        ],
+        render_kw={
+            "placeholder": "Paste the original article or source text here",
+            "rows": 10
+        }
+    )
+    
+    source_name = SelectField(
+        'Source',
+        choices=[
+            ('', 'Select source (optional)'),
+            ('ChatGPT', 'ChatGPT'),
+            ('Claude', 'Claude'),
+            ('Gemini', 'Gemini'),
+            ('Other', 'Other')
+        ],
+        validators=[Optional()],
+        default=''
+    )
+    
+    url = URLField(
+        'URL',
+        validators=[
+            Optional(),
+            URL(message='Please enter a valid URL.'),
+            Length(max=500, message="URL must be less than 500 characters.")
+        ],
+        render_kw={
+            "placeholder": "https://example.com/article (optional)"
         }
     )
     
@@ -76,6 +147,34 @@ class ResearchBriefForm(FlaskForm):
         if self.source_type.data == 'text':
             if not field.data or len(field.data.strip()) < 50:
                 raise ValidationError('Source text must be at least 50 characters long.')
+    
+    def validate_title(self, field):
+        """Validate title if source type is manual"""
+        if self.source_type.data == 'manual':
+            if not field.data or not field.data.strip():
+                raise ValidationError('Title is required for manual entry.')
+            if len(field.data.strip()) > 500:
+                raise ValidationError('Title must be less than 500 characters.')
+    
+    def validate_citation(self, field):
+        """Validate citation if source type is manual"""
+        if self.source_type.data == 'manual':
+            if not field.data or not field.data.strip():
+                raise ValidationError('Citation is required for manual entry.')
+            if len(field.data.strip()) > 1000:
+                raise ValidationError('Citation must be less than 1000 characters.')
+    
+    def validate_summary(self, field):
+        """Validate summary if source type is manual"""
+        if self.source_type.data == 'manual':
+            if not field.data or not field.data.strip():
+                raise ValidationError('Summary is required for manual entry.')
+    
+    def validate_manual_source_text(self, field):
+        """Validate manual source text if source type is manual"""
+        if self.source_type.data == 'manual':
+            if not field.data or not field.data.strip():
+                raise ValidationError('Source article text is required for manual entry.')
 
 
 class EditBriefForm(FlaskForm):
@@ -106,6 +205,18 @@ class EditBriefForm(FlaskForm):
         render_kw={
             "placeholder": "Enter summary with bullet points",
             "rows": 15
+        }
+    )
+    
+    url = URLField(
+        'URL',
+        validators=[
+            Optional(),
+            URL(message='Please enter a valid URL.'),
+            Length(max=500, message="URL must be less than 500 characters.")
+        ],
+        render_kw={
+            "placeholder": "https://example.com/article (optional)"
         }
     )
     
