@@ -1,0 +1,570 @@
+{% extends "base.html" %}
+
+{% block title %}To Do{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/todo.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="todo-container">
+    <div class="todo-header">
+        <h1><i class="fas fa-tasks"></i> To Do</h1>
+    </div>
+
+    <!-- Add Todo Form -->
+    <div class="todo-form-container">
+        <form method="POST" action="{{ url_for('todo_list') }}" class="todo-form">
+            {{ form.hidden_tag() }}
+            <div class="row w-100">
+                <div class="col-md-7">
+                    {{ form.description.label(class="form-label") }}
+                    {{ form.description(class="form-control") }}
+                    {% if form.description.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.description.errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="col-md-3">
+                    {{ form.due_date.label(class="form-label") }}
+                    <div class="position-relative">
+                        {{ form.due_date(class="form-control") }}
+                        <i class="fas fa-calendar-alt position-absolute" style="right: 0.75rem; top: 50%; transform: translateY(-50%); pointer-events: none; color: #adb5bd; font-size: 0.85rem;"></i>
+                    </div>
+                    {% if form.due_date.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.due_date.errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="col-md-2">
+                    {{ form.submit(class="btn btn-primary") }}
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Todo List -->
+    <div class="todo-list-container">
+        {% if todos %}
+            <ul class="todo-list">
+                {% for todo in todos %}
+                <li class="todo-item {% if todo.completed %}completed{% endif %}" data-todo-id="{{ todo.id }}">
+                    <div class="todo-checkbox-container">
+                        <input type="checkbox" 
+                               class="todo-checkbox" 
+                               {% if todo.completed %}checked{% endif %}
+                               data-todo-id="{{ todo.id }}"
+                               aria-label="Toggle todo completion">
+                    </div>
+                    <div class="todo-content">
+                        <div class="todo-description {% if todo.completed %}text-muted text-decoration-line-through{% endif %}">
+                            {{ todo.description }}
+                        </div>
+                        {% if todo.due_date %}
+                        <div class="todo-due-date">
+                            <i class="fas fa-calendar"></i> Due: {{ todo.due_date.strftime('%Y-%m-%d') }}
+                        </div>
+                        {% endif %}
+                        <div class="todo-meta">
+                            <small class="text-muted">Created: {{ todo.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                        </div>
+                        
+                        <!-- Subtasks Section -->
+                        <div class="subtasks-container" data-todo-id="{{ todo.id }}">
+                            <div class="subtasks-list">
+                                {% if todo.subtasks_list %}
+                                    {% for subtask in todo.subtasks_list %}
+                                    <div class="subtask-item {% if subtask.completed %}completed{% endif %}" data-subtask-id="{{ subtask.id }}">
+                                        <input type="checkbox" 
+                                               class="subtask-checkbox" 
+                                               {% if subtask.completed %}checked{% endif %}
+                                               data-todo-id="{{ todo.id }}"
+                                               data-subtask-id="{{ subtask.id }}"
+                                               aria-label="Toggle subtask completion">
+                                        <span class="subtask-description {% if subtask.completed %}text-muted text-decoration-line-through{% endif %}">
+                                            {{ subtask.description }}
+                                        </span>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-link text-danger subtask-delete-btn p-0 ms-2" 
+                                                data-todo-id="{{ todo.id }}"
+                                                data-subtask-id="{{ subtask.id }}"
+                                                aria-label="Delete subtask"
+                                                title="Delete subtask">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                            <div class="subtask-add-form">
+                                <input type="text" 
+                                       class="subtask-input form-control" 
+                                       placeholder="Add a subtask..." 
+                                       data-todo-id="{{ todo.id }}">
+                                <button type="button" 
+                                        class="subtask-add-btn" 
+                                        data-todo-id="{{ todo.id }}"
+                                        title="Add subtask"
+                                        aria-label="Add subtask">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="todo-actions">
+                        <button type="button" 
+                                class="btn btn-sm btn-outline-danger todo-delete-btn" 
+                                data-todo-id="{{ todo.id }}"
+                                aria-label="Delete todo">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-clipboard-list fa-3x"></i>
+                <h3>No Todos Yet</h3>
+                <p>Add your first todo using the form above.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Get CSRF token from meta tag or form
+    function getCSRFToken() {
+        const metaTag = document.querySelector('meta[name="csrf-token"]');
+        if (metaTag) {
+            return metaTag.getAttribute('content');
+        }
+        // Fallback: get from form hidden field
+        const form = document.querySelector('.todo-form');
+        if (form) {
+            const csrfInput = form.querySelector('input[name="csrf_token"]');
+            if (csrfInput) {
+                return csrfInput.value;
+            }
+        }
+        return null;
+    }
+    
+    // Handle checkbox toggle
+    document.querySelectorAll('.todo-checkbox').forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            const todoId = this.dataset.todoId;
+            const todoItem = this.closest('.todo-item');
+            const description = todoItem.querySelector('.todo-description');
+            
+            // Optimistic UI update
+            if (this.checked) {
+                todoItem.classList.add('completed');
+                description.classList.add('text-muted', 'text-decoration-line-through');
+            } else {
+                todoItem.classList.remove('completed');
+                description.classList.remove('text-muted', 'text-decoration-line-through');
+            }
+            
+            // Send AJAX request
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/todos/${todoId}/toggle`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    // Revert optimistic update on error
+                    this.checked = !this.checked;
+                    if (this.checked) {
+                        todoItem.classList.add('completed');
+                        description.classList.add('text-muted', 'text-decoration-line-through');
+                    } else {
+                        todoItem.classList.remove('completed');
+                        description.classList.remove('text-muted', 'text-decoration-line-through');
+                    }
+                    alert('Error updating todo: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                // Revert optimistic update on error
+                this.checked = !this.checked;
+                if (this.checked) {
+                    todoItem.classList.add('completed');
+                    description.classList.add('text-muted', 'text-decoration-line-through');
+                } else {
+                    todoItem.classList.remove('completed');
+                    description.classList.remove('text-muted', 'text-decoration-line-through');
+                }
+                console.error('Error:', error);
+                alert('Error updating todo. Please try again.');
+            });
+        });
+    });
+    
+    // Handle delete button
+    document.querySelectorAll('.todo-delete-btn').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const todoId = this.dataset.todoId;
+            const todoItem = this.closest('.todo-item');
+            
+            if (!confirm('Are you sure you want to delete this todo?')) {
+                return;
+            }
+            
+            // Optimistic UI update
+            todoItem.style.opacity = '0.5';
+            todoItem.style.pointerEvents = 'none';
+            
+            // Send AJAX request
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/todos/${todoId}/delete`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Remove from DOM
+                    todoItem.style.transition = 'opacity 0.3s ease-out';
+                    todoItem.style.opacity = '0';
+                    setTimeout(function() {
+                        todoItem.remove();
+                        
+                        // Check if list is empty and show empty state
+                        const todoList = document.querySelector('.todo-list');
+                        if (todoList && todoList.children.length === 0) {
+                            location.reload();
+                        }
+                    }, 300);
+                } else {
+                    // Revert optimistic update on error
+                    todoItem.style.opacity = '1';
+                    todoItem.style.pointerEvents = 'auto';
+                    alert('Error deleting todo: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                // Revert optimistic update on error
+                todoItem.style.opacity = '1';
+                todoItem.style.pointerEvents = 'auto';
+                console.error('Error:', error);
+                alert('Error deleting todo. Please try again.');
+            });
+        });
+    });
+    
+    // Handle subtask checkbox toggle
+    document.querySelectorAll('.subtask-checkbox').forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            const todoId = this.dataset.todoId;
+            const subtaskId = this.dataset.subtaskId;
+            const subtaskItem = this.closest('.subtask-item');
+            const description = subtaskItem.querySelector('.subtask-description');
+            
+            // Optimistic UI update
+            if (this.checked) {
+                subtaskItem.classList.add('completed');
+                description.classList.add('text-muted', 'text-decoration-line-through');
+            } else {
+                subtaskItem.classList.remove('completed');
+                description.classList.remove('text-muted', 'text-decoration-line-through');
+            }
+            
+            // Send AJAX request
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/todos/${todoId}/subtasks/${subtaskId}/toggle`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    // Revert optimistic update on error
+                    this.checked = !this.checked;
+                    if (this.checked) {
+                        subtaskItem.classList.add('completed');
+                        description.classList.add('text-muted', 'text-decoration-line-through');
+                    } else {
+                        subtaskItem.classList.remove('completed');
+                        description.classList.remove('text-muted', 'text-decoration-line-through');
+                    }
+                    alert('Error updating subtask: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                // Revert optimistic update on error
+                this.checked = !this.checked;
+                if (this.checked) {
+                    subtaskItem.classList.add('completed');
+                    description.classList.add('text-muted', 'text-decoration-line-through');
+                } else {
+                    subtaskItem.classList.remove('completed');
+                    description.classList.remove('text-muted', 'text-decoration-line-through');
+                }
+                console.error('Error:', error);
+                alert('Error updating subtask. Please try again.');
+            });
+        });
+    });
+    
+    // Handle subtask delete button
+    document.querySelectorAll('.subtask-delete-btn').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const todoId = this.dataset.todoId;
+            const subtaskId = this.dataset.subtaskId;
+            const subtaskItem = this.closest('.subtask-item');
+            
+            // Optimistic UI update
+            subtaskItem.style.opacity = '0.5';
+            subtaskItem.style.pointerEvents = 'none';
+            
+            // Send AJAX request
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/todos/${todoId}/subtasks/${subtaskId}/delete`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Remove from DOM
+                    subtaskItem.style.transition = 'opacity 0.3s ease-out';
+                    subtaskItem.style.opacity = '0';
+                    setTimeout(function() {
+                        subtaskItem.remove();
+                    }, 300);
+                } else {
+                    // Revert optimistic update on error
+                    subtaskItem.style.opacity = '1';
+                    subtaskItem.style.pointerEvents = 'auto';
+                    alert('Error deleting subtask: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                // Revert optimistic update on error
+                subtaskItem.style.opacity = '1';
+                subtaskItem.style.pointerEvents = 'auto';
+                console.error('Error:', error);
+                alert('Error deleting subtask. Please try again.');
+            });
+        });
+    });
+    
+    // Handle subtask input - add on Enter key or button click
+    document.querySelectorAll('.subtask-input').forEach(function(input) {
+        const addSubtask = function() {
+            const todoId = input.dataset.todoId;
+            const description = input.value.trim();
+            
+            if (!description) {
+                return;
+            }
+            
+            // Clear input
+            input.value = '';
+            input.disabled = true;
+            
+            // Send AJAX request
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/todos/${todoId}/subtasks/create`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({ description: description })
+            })
+            .then(response => response.json())
+            .then(data => {
+                input.disabled = false;
+                if (data.success && data.subtask) {
+                    // Add subtask to DOM
+                    const subtasksList = input.closest('.subtasks-container').querySelector('.subtasks-list');
+                    const subtaskHtml = `
+                        <div class="subtask-item" data-subtask-id="${data.subtask.id}">
+                            <input type="checkbox" 
+                                   class="subtask-checkbox" 
+                                   data-todo-id="${todoId}"
+                                   data-subtask-id="${data.subtask.id}"
+                                   aria-label="Toggle subtask completion">
+                            <span class="subtask-description">
+                                ${escapeHtml(data.subtask.description)}
+                            </span>
+                            <button type="button" 
+                                    class="btn btn-sm btn-link text-danger subtask-delete-btn p-0 ms-2" 
+                                    data-todo-id="${todoId}"
+                                    data-subtask-id="${data.subtask.id}"
+                                    aria-label="Delete subtask"
+                                    title="Delete subtask">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    `;
+                    subtasksList.insertAdjacentHTML('beforeend', subtaskHtml);
+                    
+                    // Re-attach event listeners to new elements
+                    const newCheckbox = subtasksList.querySelector(`.subtask-checkbox[data-subtask-id="${data.subtask.id}"]`);
+                    const newDeleteBtn = subtasksList.querySelector(`.subtask-delete-btn[data-subtask-id="${data.subtask.id}"]`);
+                    
+                    if (newCheckbox) {
+                        newCheckbox.addEventListener('change', function() {
+                            const todoId = this.dataset.todoId;
+                            const subtaskId = this.dataset.subtaskId;
+                            const subtaskItem = this.closest('.subtask-item');
+                            const description = subtaskItem.querySelector('.subtask-description');
+                            
+                            if (this.checked) {
+                                subtaskItem.classList.add('completed');
+                                description.classList.add('text-muted', 'text-decoration-line-through');
+                            } else {
+                                subtaskItem.classList.remove('completed');
+                                description.classList.remove('text-muted', 'text-decoration-line-through');
+                            }
+                            
+                            const headers = {
+                                'Content-Type': 'application/json',
+                            };
+                            const csrfToken = getCSRFToken();
+                            if (csrfToken) {
+                                headers['X-CSRFToken'] = csrfToken;
+                            }
+                            
+                            fetch(`/todos/${todoId}/subtasks/${subtaskId}/toggle`, {
+                                method: 'POST',
+                                headers: headers,
+                                body: JSON.stringify({})
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (!data.success) {
+                                    this.checked = !this.checked;
+                                    if (this.checked) {
+                                        subtaskItem.classList.add('completed');
+                                        description.classList.add('text-muted', 'text-decoration-line-through');
+                                    } else {
+                                        subtaskItem.classList.remove('completed');
+                                        description.classList.remove('text-muted', 'text-decoration-line-through');
+                                    }
+                                }
+                            });
+                        });
+                    }
+                    
+                    if (newDeleteBtn) {
+                        newDeleteBtn.addEventListener('click', function() {
+                            const todoId = this.dataset.todoId;
+                            const subtaskId = this.dataset.subtaskId;
+                            const subtaskItem = this.closest('.subtask-item');
+                            
+                            subtaskItem.style.opacity = '0.5';
+                            subtaskItem.style.pointerEvents = 'none';
+                            
+                            const headers = {
+                                'Content-Type': 'application/json',
+                            };
+                            const csrfToken = getCSRFToken();
+                            if (csrfToken) {
+                                headers['X-CSRFToken'] = csrfToken;
+                            }
+                            
+                            fetch(`/todos/${todoId}/subtasks/${subtaskId}/delete`, {
+                                method: 'POST',
+                                headers: headers,
+                                body: JSON.stringify({})
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    subtaskItem.style.transition = 'opacity 0.3s ease-out';
+                                    subtaskItem.style.opacity = '0';
+                                    setTimeout(function() {
+                                        subtaskItem.remove();
+                                    }, 300);
+                                } else {
+                                    subtaskItem.style.opacity = '1';
+                                    subtaskItem.style.pointerEvents = 'auto';
+                                }
+                            });
+                        });
+                    }
+                } else {
+                    alert('Error creating subtask: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                input.disabled = false;
+                console.error('Error:', error);
+                alert('Error creating subtask. Please try again.');
+            });
+        };
+        
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addSubtask();
+            }
+        });
+        
+        const addBtn = input.closest('.subtask-add-form').querySelector('.subtask-add-btn');
+        if (addBtn) {
+            addBtn.addEventListener('click', addSubtask);
+        }
+    });
+    
+    // Helper function to escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+});
+</script>
+{% endblock %}
+

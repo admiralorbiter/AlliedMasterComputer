@@ -8,7 +8,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 # Import from modular structure
-from flask_app.models import db, User, ResearchBrief
+from flask_app.models import db, User, ResearchBrief, Todo, SubTask
 from flask_app.routes import init_routes
 from flask_app.utils.logging_config import setup_logging
 from flask_app.utils.error_handler import init_error_alerting
