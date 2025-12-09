@@ -12,8 +12,11 @@
         <h1><i class="fas fa-tasks"></i> To Do</h1>
     </div>
 
-    <!-- Add Todo Form -->
-    <div class="todo-form-container">
+    <div class="todo-main-layout row g-4">
+        <!-- Main Content: Todos -->
+        <div class="todo-main-content col-lg-8 col-xl-9">
+            <!-- Add Todo Form -->
+            <div class="todo-form-container">
         <form method="POST" action="{{ url_for('todo_list') }}" class="todo-form">
             {{ form.hidden_tag() }}
             <div class="row w-100">
@@ -47,10 +50,10 @@
                 </div>
             </div>
         </form>
-    </div>
+            </div>
 
-    <!-- Todo List -->
-    <div class="todo-list-container">
+            <!-- Todo List -->
+            <div class="todo-list-container">
         {% if todos %}
             <ul class="todo-list">
                 {% for todo in todos %}
@@ -135,6 +138,80 @@
                 <p>Add your first todo using the form above.</p>
             </div>
         {% endif %}
+            </div>
+        </div>
+        
+        <!-- Sidebar: Upcoming Events -->
+        <div class="events-sidebar col-lg-4 col-xl-3">
+            <div class="events-header">
+                <h2><i class="fas fa-calendar-alt"></i> Upcoming Events</h2>
+            </div>
+            
+            <!-- Add Event Form -->
+            <div class="event-form-container">
+                <form class="event-form" id="eventForm">
+                    <input type="text" 
+                           class="form-control event-description-input" 
+                           placeholder="Event description" 
+                           id="eventDescription"
+                           required>
+                    <input type="date" 
+                           class="form-control event-date-input" 
+                           id="eventDate"
+                           required>
+                    <textarea class="form-control event-notes-input" 
+                              placeholder="Notes (optional)" 
+                              id="eventNotes"
+                              rows="2"></textarea>
+                    <button type="submit" class="event-add-btn">
+                        <i class="fas fa-plus"></i> Add
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Events List -->
+            <div class="events-list-container">
+                {% if events %}
+                    <div class="events-list">
+                        {% for event in events %}
+                        <div class="event-item" data-event-id="{{ event.id }}">
+                            <div class="event-content">
+                                <div class="event-description-display">
+                                    <strong>{{ event.description }}</strong>
+                                </div>
+                                <div class="event-date-display">
+                                    <i class="fas fa-calendar"></i> {{ event.event_date.strftime('%Y-%m-%d') }}
+                                </div>
+                                {% if event.notes %}
+                                <div class="event-notes-display">
+                                    {{ event.notes }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="event-actions">
+                                <button type="button" 
+                                        class="btn btn-sm btn-link event-edit-btn" 
+                                        data-event-id="{{ event.id }}"
+                                        title="Edit event">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-sm btn-link text-danger event-delete-btn" 
+                                        data-event-id="{{ event.id }}"
+                                        title="Delete event">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="events-empty-state">
+                        <p class="text-muted">No upcoming events. Add one above!</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -564,6 +641,288 @@ document.addEventListener('DOMContentLoaded', function() {
         div.textContent = text;
         return div.innerHTML;
     }
+    
+    // Handle event form submission
+    const eventForm = document.getElementById('eventForm');
+    if (eventForm) {
+        eventForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const description = document.getElementById('eventDescription').value.trim();
+            const eventDate = document.getElementById('eventDate').value;
+            const notes = document.getElementById('eventNotes').value.trim();
+            
+            if (!description || !eventDate) {
+                alert('Please fill in description and date');
+                return;
+            }
+            
+            // Disable form
+            const submitBtn = eventForm.querySelector('.event-add-btn');
+            submitBtn.disabled = true;
+            
+            // Send AJAX request
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch('/events/create', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({
+                    description: description,
+                    event_date: eventDate,
+                    notes: notes || null
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                submitBtn.disabled = false;
+                if (data.success && data.event) {
+                    // Reset form
+                    eventForm.reset();
+                    
+                    // Add event to DOM
+                    const eventsList = document.querySelector('.events-list');
+                    const emptyState = document.querySelector('.events-empty-state');
+                    
+                    if (emptyState) {
+                        emptyState.remove();
+                    }
+                    
+                    if (!eventsList) {
+                        const container = document.querySelector('.events-list-container');
+                        const newList = document.createElement('div');
+                        newList.className = 'events-list';
+                        container.appendChild(newList);
+                    }
+                    
+                    const eventsListContainer = document.querySelector('.events-list') || document.createElement('div');
+                    if (!eventsListContainer.classList.contains('events-list')) {
+                        eventsListContainer.className = 'events-list';
+                        document.querySelector('.events-list-container').appendChild(eventsListContainer);
+                    }
+                    
+                    const eventHtml = `
+                        <div class="event-item" data-event-id="${data.event.id}">
+                            <div class="event-content">
+                                <div class="event-description-display">
+                                    <strong>${escapeHtml(data.event.description)}</strong>
+                                </div>
+                                <div class="event-date-display">
+                                    <i class="fas fa-calendar"></i> ${data.event.event_date}
+                                </div>
+                                ${data.event.notes ? `<div class="event-notes-display">${escapeHtml(data.event.notes)}</div>` : ''}
+                            </div>
+                            <div class="event-actions">
+                                <button type="button" 
+                                        class="btn btn-sm btn-link event-edit-btn" 
+                                        data-event-id="${data.event.id}"
+                                        title="Edit event">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-sm btn-link text-danger event-delete-btn" 
+                                        data-event-id="${data.event.id}"
+                                        title="Delete event">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    eventsListContainer.insertAdjacentHTML('beforeend', eventHtml);
+                    
+                    // Re-attach event listeners
+                    attachEventListeners();
+                } else {
+                    alert('Error creating event: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                submitBtn.disabled = false;
+                console.error('Error:', error);
+                alert('Error creating event. Please try again.');
+            });
+        });
+    }
+    
+    // Function to attach event listeners
+    function attachEventListeners() {
+        // Handle event delete
+        document.querySelectorAll('.event-delete-btn').forEach(function(button) {
+            if (button.dataset.listenerAttached) return;
+            button.dataset.listenerAttached = 'true';
+            
+            button.addEventListener('click', function() {
+                const eventId = this.dataset.eventId;
+                const eventItem = this.closest('.event-item');
+                
+                if (!confirm('Are you sure you want to delete this event?')) {
+                    return;
+                }
+                
+                eventItem.style.opacity = '0.5';
+                eventItem.style.pointerEvents = 'none';
+                
+                const headers = {
+                    'Content-Type': 'application/json',
+                };
+                const csrfToken = getCSRFToken();
+                if (csrfToken) {
+                    headers['X-CSRFToken'] = csrfToken;
+                }
+                
+                fetch(`/events/${eventId}/delete`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({})
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        eventItem.style.transition = 'opacity 0.3s ease-out';
+                        eventItem.style.opacity = '0';
+                        setTimeout(function() {
+                            eventItem.remove();
+                            const eventsList = document.querySelector('.events-list');
+                            if (eventsList && eventsList.children.length === 0) {
+                                const container = document.querySelector('.events-list-container');
+                                const emptyState = document.createElement('div');
+                                emptyState.className = 'events-empty-state';
+                                emptyState.innerHTML = '<p class="text-muted">No upcoming events. Add one above!</p>';
+                                container.appendChild(emptyState);
+                            }
+                        }, 300);
+                    } else {
+                        eventItem.style.opacity = '1';
+                        eventItem.style.pointerEvents = 'auto';
+                        alert('Error deleting event: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    eventItem.style.opacity = '1';
+                    eventItem.style.pointerEvents = 'auto';
+                    console.error('Error:', error);
+                    alert('Error deleting event. Please try again.');
+                });
+            });
+        });
+        
+        // Handle event edit
+        document.querySelectorAll('.event-edit-btn').forEach(function(button) {
+            if (button.dataset.listenerAttached) return;
+            button.dataset.listenerAttached = 'true';
+            
+            button.addEventListener('click', function() {
+                const eventId = this.dataset.eventId;
+                const eventItem = this.closest('.event-item');
+                const descriptionEl = eventItem.querySelector('.event-description-display strong');
+                const dateEl = eventItem.querySelector('.event-date-display');
+                const notesEl = eventItem.querySelector('.event-notes-display');
+                
+                const currentDescription = descriptionEl.textContent.trim();
+                const currentDate = dateEl.textContent.match(/\d{4}-\d{2}-\d{2}/)?.[0] || '';
+                const currentNotes = notesEl ? notesEl.textContent.trim() : '';
+                
+                // Create edit form
+                const editForm = document.createElement('form');
+                editForm.className = 'event-edit-form';
+                editForm.innerHTML = `
+                    <input type="text" 
+                           class="form-control event-edit-description" 
+                           value="${escapeHtml(currentDescription)}" 
+                           required>
+                    <input type="date" 
+                           class="form-control event-edit-date" 
+                           value="${currentDate}" 
+                           required>
+                    <textarea class="form-control event-edit-notes" 
+                              rows="2">${escapeHtml(currentNotes)}</textarea>
+                    <div class="event-edit-actions">
+                        <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                        <button type="button" class="btn btn-sm btn-secondary event-cancel-edit">Cancel</button>
+                    </div>
+                `;
+                
+                const originalContent = eventItem.querySelector('.event-content').innerHTML;
+                const originalActions = eventItem.querySelector('.event-actions').innerHTML;
+                
+                eventItem.querySelector('.event-content').innerHTML = '';
+                eventItem.querySelector('.event-content').appendChild(editForm);
+                eventItem.querySelector('.event-actions').style.display = 'none';
+                
+                // Handle cancel
+                editForm.querySelector('.event-cancel-edit').addEventListener('click', function() {
+                    eventItem.querySelector('.event-content').innerHTML = originalContent;
+                    eventItem.querySelector('.event-actions').innerHTML = originalActions;
+                    eventItem.querySelector('.event-actions').style.display = '';
+                    attachEventListeners();
+                });
+                
+                // Handle submit
+                editForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const newDescription = editForm.querySelector('.event-edit-description').value.trim();
+                    const newDate = editForm.querySelector('.event-edit-date').value;
+                    const newNotes = editForm.querySelector('.event-edit-notes').value.trim();
+                    
+                    if (!newDescription || !newDate) {
+                        alert('Please fill in description and date');
+                        return;
+                    }
+                    
+                    const headers = {
+                        'Content-Type': 'application/json',
+                    };
+                    const csrfToken = getCSRFToken();
+                    if (csrfToken) {
+                        headers['X-CSRFToken'] = csrfToken;
+                    }
+                    
+                    fetch(`/events/${eventId}/update`, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify({
+                            description: newDescription,
+                            event_date: newDate,
+                            notes: newNotes || null
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.event) {
+                            // Update DOM
+                            eventItem.querySelector('.event-content').innerHTML = `
+                                <div class="event-description-display">
+                                    <strong>${escapeHtml(data.event.description)}</strong>
+                                </div>
+                                <div class="event-date-display">
+                                    <i class="fas fa-calendar"></i> ${data.event.event_date}
+                                </div>
+                                ${data.event.notes ? `<div class="event-notes-display">${escapeHtml(data.event.notes)}</div>` : ''}
+                            `;
+                            eventItem.querySelector('.event-actions').style.display = '';
+                            attachEventListeners();
+                        } else {
+                            alert('Error updating event: ' + (data.error || 'Unknown error'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error updating event. Please try again.');
+                    });
+                });
+            });
+        });
+    }
+    
+    // Initial attachment
+    attachEventListeners();
 });
 </script>
 {% endblock %}

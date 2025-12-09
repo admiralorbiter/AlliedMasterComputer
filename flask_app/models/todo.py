@@ -68,3 +68,41 @@ class Todo(BaseModel):
             current_app.logger.error(f"Database error finding todo {todo_id} for user {user_id}: {str(e)}")
             return None
 
+class Event(BaseModel):
+    """Model for storing user upcoming events"""
+    __tablename__ = 'events'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    description = db.Column(db.String(500), nullable=False)
+    event_date = db.Column(db.Date, nullable=False, index=True)
+    notes = db.Column(db.Text, nullable=True)
+    
+    # Relationship to User
+    user = db.relationship('User', backref=db.backref('events', lazy='dynamic', cascade='all, delete-orphan'))
+    
+    def __repr__(self):
+        return f'<Event {self.id}: {self.description[:50]}>'
+    
+    @staticmethod
+    def find_by_user(user_id):
+        """Find all events for a user, ordered by event_date ascending (upcoming first)"""
+        try:
+            return Event.query.filter_by(user_id=user_id)\
+                .order_by(Event.event_date.asc(), Event.created_at.asc())\
+                .all()
+        except Exception as e:
+            from flask import current_app
+            current_app.logger.error(f"Database error finding events for user {user_id}: {str(e)}")
+            return []
+    
+    @staticmethod
+    def find_by_id_and_user(event_id, user_id):
+        """Find an event by ID ensuring it belongs to the user"""
+        try:
+            return Event.query.filter_by(id=event_id, user_id=user_id).first()
+        except Exception as e:
+            from flask import current_app
+            current_app.logger.error(f"Database error finding event {event_id} for user {user_id}: {str(e)}")
+            return None
+

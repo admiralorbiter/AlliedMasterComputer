@@ -2,8 +2,8 @@
 
 from flask import flash, redirect, render_template, url_for, request, current_app, jsonify
 from flask_login import login_required, current_user
-from flask_app.models import Todo, SubTask, db
-from flask_app.forms import TodoForm
+from flask_app.models import Todo, SubTask, Event, db
+from flask_app.forms import TodoForm, EventForm
 
 def register_todo_routes(app):
     """Register todo routes"""
@@ -36,8 +36,11 @@ def register_todo_routes(app):
             for todo in todos:
                 todo.subtasks_list = SubTask.find_by_todo(todo.id)
             
+            # Get all events for the current user
+            events = Event.find_by_user(current_user.id)
+            
             current_app.logger.info(f"Todo list accessed by {current_user.username}")
-            return render_template('todo/list.html', form=form, todos=todos)
+            return render_template('todo/list.html', form=form, todos=todos, events=events)
             
         except Exception as e:
             current_app.logger.error(f"Error in todo list: {str(e)}")
@@ -46,7 +49,8 @@ def register_todo_routes(app):
             # Load subtasks for each todo
             for todo in todos:
                 todo.subtasks_list = SubTask.find_by_todo(todo.id)
-            return render_template('todo/list.html', form=form, todos=todos)
+            events = Event.find_by_user(current_user.id) if current_user.is_authenticated else []
+            return render_template('todo/list.html', form=form, todos=todos, events=events)
     
     @app.route('/todos/<int:id>/toggle', methods=['POST'])
     @login_required
@@ -200,5 +204,130 @@ def register_todo_routes(app):
             
         except Exception as e:
             current_app.logger.error(f"Error deleting subtask {subtask_id}: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/events/create', methods=['POST'])
+    @login_required
+    def event_create():
+        """Create a new event (returns JSON for AJAX)"""
+        try:
+            data = request.get_json()
+            description = data.get('description', '').strip()
+            event_date_str = data.get('event_date', '')
+            notes = data.get('notes', '').strip() if data.get('notes') else None
+            
+            if not description:
+                return jsonify({'success': False, 'error': 'Description is required'}), 400
+            
+            if not event_date_str:
+                return jsonify({'success': False, 'error': 'Date is required'}), 400
+            
+            # Parse date string (expecting YYYY-MM-DD format)
+            from datetime import datetime
+            try:
+                event_date = datetime.strptime(event_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'success': False, 'error': 'Invalid date format'}), 400
+            
+            new_event, error = Event.safe_create(
+                user_id=current_user.id,
+                description=description,
+                event_date=event_date,
+                notes=notes
+            )
+            
+            if error:
+                current_app.logger.error(f"Error creating event: {error}")
+                return jsonify({'success': False, 'error': error}), 500
+            
+            current_app.logger.info(f"Event {new_event.id} created by {current_user.username}")
+            return jsonify({
+                'success': True,
+                'event': {
+                    'id': new_event.id,
+                    'description': new_event.description,
+                    'event_date': new_event.event_date.strftime('%Y-%m-%d'),
+                    'notes': new_event.notes or ''
+                }
+            })
+            
+        except Exception as e:
+            current_app.logger.error(f"Error creating event: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/events/<int:id>/update', methods=['POST'])
+    @login_required
+    def event_update(id):
+        """Update an event (returns JSON for AJAX)"""
+        event = Event.find_by_id_and_user(id, current_user.id)
+        
+        if not event:
+            return jsonify({'success': False, 'error': 'Event not found'}), 404
+        
+        try:
+            data = request.get_json()
+            description = data.get('description', '').strip()
+            event_date_str = data.get('event_date', '')
+            notes = data.get('notes', '').strip() if data.get('notes') else None
+            
+            if not description:
+                return jsonify({'success': False, 'error': 'Description is required'}), 400
+            
+            if not event_date_str:
+                return jsonify({'success': False, 'error': 'Date is required'}), 400
+            
+            # Parse date string
+            from datetime import datetime
+            try:
+                event_date = datetime.strptime(event_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'success': False, 'error': 'Invalid date format'}), 400
+            
+            success, error = event.safe_update(
+                description=description,
+                event_date=event_date,
+                notes=notes
+            )
+            
+            if error:
+                current_app.logger.error(f"Error updating event {id}: {error}")
+                return jsonify({'success': False, 'error': error}), 500
+            
+            current_app.logger.info(f"Event {id} updated by {current_user.username}")
+            return jsonify({
+                'success': True,
+                'event': {
+                    'id': event.id,
+                    'description': event.description,
+                    'event_date': event.event_date.strftime('%Y-%m-%d'),
+                    'notes': event.notes or ''
+                }
+            })
+            
+        except Exception as e:
+            current_app.logger.error(f"Error updating event {id}: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/events/<int:id>/delete', methods=['POST'])
+    @login_required
+    def event_delete(id):
+        """Delete event (returns JSON for AJAX)"""
+        event = Event.find_by_id_and_user(id, current_user.id)
+        
+        if not event:
+            return jsonify({'success': False, 'error': 'Event not found'}), 404
+        
+        try:
+            success, error = event.safe_delete()
+            
+            if error:
+                current_app.logger.error(f"Error deleting event {id}: {error}")
+                return jsonify({'success': False, 'error': error}), 500
+            
+            current_app.logger.info(f"Event {id} deleted by {current_user.username}")
+            return jsonify({'success': True})
+            
+        except Exception as e:
+            current_app.logger.error(f"Error deleting event {id}: {str(e)}")
             return jsonify({'success': False, 'error': str(e)}), 500
 
