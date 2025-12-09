@@ -490,8 +490,57 @@ def register_research_routes(app):
     @app.route('/research/by-tags')
     @login_required
     def research_by_tags():
-        """Show all research briefs grouped by tag"""
+        """Show all research briefs grouped by tag, optionally filtered by a specific tag"""
         try:
+            # Get optional tag filter from query parameter
+            tag_id = request.args.get('tag', type=int)
+            selected_tag = None
+            
+            # Get all tags with counts for filter UI
+            tags_with_counts, error = Tag.get_all_tags_with_counts()
+            if error:
+                current_app.logger.warning(f"Error getting tags with counts: {error}")
+                tags_with_counts = []
+            
+            # Filter tags_with_counts to only include those with briefs for current user
+            # We need to count briefs per tag for the current user only
+            user_tags_with_counts = []
+            for tag, count in tags_with_counts:
+                # Count briefs for this user with this tag
+                user_brief_count = ResearchBrief.query.filter_by(user_id=current_user.id)\
+                    .join(ResearchBrief.tags)\
+                    .filter(Tag.id == tag.id)\
+                    .count()
+                
+                if user_brief_count > 0:
+                    user_tags_with_counts.append((tag, user_brief_count))
+            
+            # If filtering by a specific tag
+            if tag_id:
+                selected_tag = Tag.query.get(tag_id)
+                if not selected_tag:
+                    flash('Tag not found.', 'warning')
+                    return redirect(url_for('research_by_tags'))
+                
+                # Get all briefs for this user with this tag
+                briefs = ResearchBrief.query.filter_by(user_id=current_user.id)\
+                    .join(ResearchBrief.tags)\
+                    .filter(Tag.id == tag_id)\
+                    .order_by(ResearchBrief.created_at.desc())\
+                    .all()
+                
+                # Return single tag view
+                tags_with_briefs = [(selected_tag, briefs)] if briefs else []
+                briefs_without_tags = []
+                
+                current_app.logger.info(f"Research briefs by tags viewed by {current_user.username} (filtered by tag {tag_id})")
+                return render_template('research/by_tags.html', 
+                                     tags_with_briefs=tags_with_briefs,
+                                     briefs_without_tags=briefs_without_tags,
+                                     tags_with_counts=user_tags_with_counts,
+                                     selected_tag=selected_tag)
+            
+            # No filter - show all tags
             # Get all tags that have at least one brief
             all_tags = Tag.get_all_tags()
             
@@ -513,7 +562,7 @@ def register_research_routes(app):
             
             # Also get briefs with no tags
             # Get all brief IDs that have tags
-            from sqlalchemy import distinct, select
+            from sqlalchemy import distinct
             from flask_app.models.research_brief import research_brief_tags
             
             # Get all brief IDs that have at least one tag
@@ -530,11 +579,17 @@ def register_research_routes(app):
             current_app.logger.info(f"Research briefs by tags viewed by {current_user.username}")
             return render_template('research/by_tags.html', 
                                  tags_with_briefs=tags_with_briefs,
-                                 briefs_without_tags=briefs_without_tags)
+                                 briefs_without_tags=briefs_without_tags,
+                                 tags_with_counts=user_tags_with_counts,
+                                 selected_tag=None)
             
         except Exception as e:
             current_app.logger.error(f"Error in research by tags: {str(e)}")
             import traceback
             current_app.logger.error(f"Traceback: {traceback.format_exc()}")
             flash('An error occurred while loading briefs by tags.', 'danger')
-            return render_template('research/by_tags.html', tags_with_briefs=[], briefs_without_tags=[])
+            return render_template('research/by_tags.html', 
+                                 tags_with_briefs=[], 
+                                 briefs_without_tags=[],
+                                 tags_with_counts=[],
+                                 selected_tag=None)

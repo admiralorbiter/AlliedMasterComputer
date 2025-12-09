@@ -20,6 +20,42 @@
         </div>
     </div>
 
+    <!-- Tag Filter Section -->
+    {% if tags_with_counts %}
+        <div class="tag-filter-section">
+            {% if selected_tag %}
+                <div class="active-filter">
+                    <span class="active-tag-indicator">
+                        <i class="fas fa-filter"></i> Filtering by: <strong>{{ selected_tag.name }}</strong>
+                    </span>
+                    <a href="{{ url_for('research_by_tags') }}" class="btn-clear-filter">
+                        <i class="fas fa-times"></i> Show All Tags
+                    </a>
+                </div>
+            {% endif %}
+            
+            <div class="tag-filter-list">
+                <h3><i class="fas fa-filter"></i> Filter by Tag</h3>
+                <div class="tag-list">
+                    {% if not selected_tag %}
+                        <a href="{{ url_for('research_by_tags') }}" class="tag-filter-link active">
+                            <i class="fas fa-list"></i>
+                            <span class="tag-name">Show All</span>
+                        </a>
+                    {% endif %}
+                    {% for tag, count in tags_with_counts %}
+                        <a href="{{ url_for('research_by_tags', tag=tag.id) }}" 
+                           class="tag-filter-link {% if selected_tag and selected_tag.id == tag.id %}active{% endif %}">
+                            <i class="fas fa-tag"></i>
+                            <span class="tag-name">{{ tag.name }}</span>
+                            <span class="tag-count">({{ count }})</span>
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
     {% if tags_with_briefs or briefs_without_tags %}
         <!-- Briefs Grouped by Tags -->
         {% for tag, briefs in tags_with_briefs %}

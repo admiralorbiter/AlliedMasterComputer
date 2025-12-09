@@ -717,6 +717,28 @@
     }
 }
 
+/* Tag Filter Section (for by_tags.html) */
+.tag-filter-section {
+    background: white;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+.tag-filter-list h3 {
+    color: var(--dark-purple, #4A2C5A);
+    font-size: 1.1rem;
+    margin: 0 0 1rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tag-filter-list h3 i {
+    color: var(--eggplant, #6B4E71);
+}
+
 /* Tag Section Styles (for by_tags.html) */
 .tag-section {
     background: white;
