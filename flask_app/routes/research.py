@@ -6,6 +6,7 @@ from werkzeug.utils import secure_filename
 from flask_app.models import ResearchBrief, Tag, db
 from flask_app.forms import ResearchBriefForm, EditBriefForm
 from flask_app.utils.openai_service import process_research_brief, calculate_pdf_hash
+from flask_app.utils.html_sanitizer import sanitize_html
 from io import BytesIO
 import os
 
@@ -136,12 +137,15 @@ def register_research_routes(app):
                 
                 # Handle manual entry (no AI processing)
                 elif form.source_type.data == 'manual':
+                    # Sanitize HTML summary before saving
+                    sanitized_summary = sanitize_html(form.summary.data) if form.summary.data else ''
+                    
                     # Create the research brief directly from form data
                     new_brief, db_error = ResearchBrief.safe_create(
                         user_id=current_user.id,
                         title=form.title.data.strip(),
                         citation=form.citation.data.strip(),
-                        summary=form.summary.data.strip(),
+                        summary=sanitized_summary,
                         source_text=form.manual_source_text.data.strip() if form.manual_source_text.data else '',
                         url=form.url.data.strip() if form.url.data else None,
                         pdf_filename=None,
@@ -372,17 +376,24 @@ def register_research_routes(app):
         form = EditBriefForm(obj=brief)
         
         # Populate tags field with current tags
+        # Also ensure summary field is populated (HiddenField might not auto-populate)
         if request.method == 'GET':
             current_tags = brief.get_tag_names()
             form.tags.data = ', '.join(current_tags)
+            # Explicitly set summary field value
+            if brief.summary:
+                form.summary.data = brief.summary
         
         try:
             if form.validate_on_submit():
+                # Sanitize HTML summary before saving
+                sanitized_summary = sanitize_html(form.summary.data) if form.summary.data else ''
+                
                 # Update basic fields
                 success, error = brief.safe_update(
                     title=form.title.data.strip(),
                     citation=form.citation.data.strip(),
-                    summary=form.summary.data.strip(),
+                    summary=sanitized_summary,
                     url=form.url.data.strip() if form.url.data else None
                 )
                 

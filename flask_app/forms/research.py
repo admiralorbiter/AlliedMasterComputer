@@ -2,7 +2,7 @@
 
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed
-from wtforms import StringField, TextAreaField, SubmitField, RadioField, SelectField, URLField
+from wtforms import StringField, TextAreaField, SubmitField, RadioField, SelectField, URLField, HiddenField
 from wtforms.validators import DataRequired, Length, ValidationError, Optional, URL
 
 class ResearchBriefForm(FlaskForm):
@@ -58,15 +58,12 @@ class ResearchBriefForm(FlaskForm):
         }
     )
     
-    summary = TextAreaField(
+    summary = HiddenField(
         'Summary',
         validators=[
             Optional()
         ],
-        render_kw={
-            "placeholder": "Enter the summary with bullet points",
-            "rows": 15
-        }
+        render_kw={'id': 'summary'}
     )
     
     manual_source_text = TextAreaField(
@@ -167,7 +164,8 @@ class ResearchBriefForm(FlaskForm):
     def validate_summary(self, field):
         """Validate summary if source type is manual"""
         if self.source_type.data == 'manual':
-            if not field.data or not field.data.strip():
+            # For HTML content, check if it's not just empty tags
+            if not field.data or not field.data.strip() or field.data.strip() in ['<p><br></p>', '<p></p>', '']:
                 raise ValidationError('Summary is required for manual entry.')
     
     def validate_manual_source_text(self, field):
@@ -197,15 +195,12 @@ class EditBriefForm(FlaskForm):
         render_kw={"placeholder": "Enter citation"}
     )
     
-    summary = TextAreaField(
+    summary = HiddenField(
         'Summary',
         validators=[
             DataRequired(message="Summary is required.")
         ],
-        render_kw={
-            "placeholder": "Enter summary with bullet points",
-            "rows": 15
-        }
+        render_kw={'id': 'summary'}
     )
     
     url = URLField(

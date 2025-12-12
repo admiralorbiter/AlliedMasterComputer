@@ -119,9 +119,10 @@
                 </div>
 
                 <div class="form-group">
-                    {{ form.summary.label(class="form-label") }}
-                    {{ form.summary(class="form-control") }}
-                    <small class="form-text text-muted">Enter the summary with bullet points or structured sections.</small>
+                    <label for="summary" class="form-label">Summary</label>
+                    {{ form.summary(id="summary") }}
+                    <div id="summary-editor" class="quill-editor-container"></div>
+                    <small class="form-text text-muted">Use the toolbar to format your summary. Supports markdown shortcuts: # for headings, **text** for bold, - for lists.</small>
                     {% if form.summary.errors %}
                         <div class="text-danger">
                             {% for error in form.summary.errors %}
@@ -319,6 +320,7 @@ Main Points:
 
 {% block extra_js %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<script src="{{ url_for('static', filename='js/quill-config.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const sourceTypeRadios = document.querySelectorAll('input[name="source_type"]');
@@ -385,6 +387,42 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initial update
     updateSections();
+
+    // Initialize Quill editor for summary field (only in manual section)
+    let summaryQuill = null;
+    function initSummaryEditor() {
+        const manualSection = document.getElementById('manualSection');
+        if (manualSection && manualSection.style.display !== 'none') {
+            const summaryEditor = document.getElementById('summary-editor');
+            const summaryInput = document.getElementById('summary');
+            if (summaryEditor && summaryInput && !summaryQuill) {
+                const initialContent = summaryInput.value || '';
+                summaryQuill = window.initQuillEditor('summary-editor', 'summary', initialContent);
+            }
+        }
+    }
+
+    // Update sections function - also initialize editor when manual section is shown
+    const originalUpdateSections = updateSections;
+    updateSections = function() {
+        originalUpdateSections();
+        // Initialize editor if manual section is visible
+        setTimeout(function() {
+            if (document.getElementById('manualSection').style.display !== 'none') {
+                initSummaryEditor();
+            } else if (summaryQuill) {
+                // Clean up if switching away from manual
+                summaryQuill = null;
+            }
+        }, 100);
+    };
+
+    // Initialize editor on page load if manual is selected
+    setTimeout(function() {
+        if (document.getElementById('manualSection').style.display !== 'none') {
+            initSummaryEditor();
+        }
+    }, 200);
 
     // Handle file selection for PDF uploads
     const pdfFileInput = document.getElementById('pdf_file');

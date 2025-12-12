@@ -92,25 +92,18 @@
         <div class="brief-section">
             <h2>Summary</h2>
             <div class="brief-content">
-                <div class="summary-text">
-                    {% set summary_lines = brief.summary.split('\n') %}
-                    {% set prev_was_header = false %}
-                    {% for line in summary_lines %}
-                        {% set line_stripped = line.strip() %}
-                        {% if line_stripped %}
-                            {% if (line_stripped == 'Key Findings:' or line_stripped == 'Main Points:' or 
-                                   line_stripped == 'Methodology:' or line_stripped == 'Approach:' or
-                                   line_stripped == 'Conclusions:' or line_stripped == 'Recommendations:' or
-                                   line_stripped == 'Methodology/Approach:' or line_stripped == 'Conclusions/Recommendations:') %}
-                                {% if prev_was_header %}<br>{% endif %}
-                                <strong class="summary-section-header">{{ line_stripped }}</strong>
-                                {% set prev_was_header = true %}
-                            {% else %}
-                                <span class="summary-line">{{ line }}</span>
-                                {% set prev_was_header = false %}
-                            {% endif %}
+                <div class="summary-text summary-html">
+                    {% if brief.summary %}
+                        {# Check if summary is HTML (contains tags) or plain text #}
+                        {% if '<' in brief.summary and '>' in brief.summary %}
+                            {{ brief.summary|safe }}
+                        {% else %}
+                            {# Fallback for plain text summaries - convert newlines to <br> #}
+                            {{ brief.summary|replace('\n', '<br>')|safe }}
                         {% endif %}
-                    {% endfor %}
+                    {% else %}
+                        <p class="text-muted">No summary available.</p>
+                    {% endif %}
                 </div>
             </div>
         </div>

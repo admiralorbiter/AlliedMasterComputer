@@ -133,6 +133,124 @@
     padding: 0;
 }
 
+/* Quill Editor Styles */
+.quill-editor-container {
+    min-height: 300px;
+    background: white;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    margin-bottom: 0.5rem;
+}
+
+.quill-editor-container .ql-container {
+    font-family: inherit;
+    font-size: 1rem;
+    min-height: 250px;
+}
+
+.quill-editor-container .ql-editor {
+    min-height: 250px;
+    padding: 1rem;
+}
+
+.quill-editor-container .ql-editor.ql-blank::before {
+    color: #6c757d;
+    font-style: normal;
+}
+
+.quill-editor-container .ql-toolbar {
+    border-top-left-radius: 0.375rem;
+    border-top-right-radius: 0.375rem;
+    border-bottom: 1px solid #ced4da;
+    background: #f8f9fa;
+}
+
+.quill-editor-container .ql-container {
+    border-bottom-left-radius: 0.375rem;
+    border-bottom-right-radius: 0.375rem;
+}
+
+/* Rendered HTML Summary Styles */
+.summary-html {
+    line-height: 1.6;
+}
+
+.summary-html h1,
+.summary-html h2,
+.summary-html h3,
+.summary-html h4,
+.summary-html h5,
+.summary-html h6 {
+    color: var(--dark-purple, #4A2C5A);
+    font-weight: 600;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.summary-html h1 {
+    font-size: 1.75rem;
+}
+
+.summary-html h2 {
+    font-size: 1.5rem;
+}
+
+.summary-html h3 {
+    font-size: 1.25rem;
+}
+
+.summary-html h4,
+.summary-html h5,
+.summary-html h6 {
+    font-size: 1.1rem;
+}
+
+.summary-html p {
+    margin-bottom: 0.75rem;
+    line-height: 1.6;
+}
+
+.summary-html ul,
+.summary-html ol {
+    margin-bottom: 0.75rem;
+    padding-left: 2rem;
+}
+
+.summary-html li {
+    margin-bottom: 0.25rem;
+    line-height: 1.6;
+}
+
+.summary-html strong,
+.summary-html b {
+    font-weight: 600;
+    color: var(--dark-purple, #4A2C5A);
+}
+
+.summary-html em,
+.summary-html i {
+    font-style: italic;
+}
+
+.summary-html a {
+    color: var(--dark-purple, #4A2C5A);
+    text-decoration: underline;
+    transition: color 0.2s;
+}
+
+.summary-html a:hover {
+    color: var(--eggplant, #6B4E71);
+}
+
+.summary-html blockquote {
+    border-left: 4px solid var(--eggplant, #6B4E71);
+    padding-left: 1rem;
+    margin-left: 0;
+    margin-bottom: 0.75rem;
+    color: #666;
+    font-style: italic;
+}
+
 .summary-text br {
     line-height: 0;
     margin: 0;

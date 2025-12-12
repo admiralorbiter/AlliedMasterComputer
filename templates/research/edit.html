@@ -64,9 +64,10 @@
 
             <div class="form-section">
                 <div class="form-group">
-                    {{ form.summary.label(class="form-label") }}
-                    {{ form.summary(class="form-control") }}
-                    <small class="form-text text-muted">Use bullet points (•) or new lines for each point.</small>
+                    <label for="summary" class="form-label">Summary</label>
+                    {{ form.summary() }}
+                    <div id="summary-editor" class="quill-editor-container"></div>
+                    <small class="form-text text-muted">Use the toolbar to format your summary. Supports markdown shortcuts: # for headings, **text** for bold, - for lists.</small>
                     {% if form.summary.errors %}
                         <div class="text-danger">
                             {% for error in form.summary.errors %}
@@ -117,4 +118,98 @@
 
 {% block extra_js %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<script src="{{ url_for('static', filename='js/quill-config.js') }}"></script>
+<script>
+// Use a small delay to ensure DOM is fully ready and form fields are rendered
+setTimeout(function() {
+    const summaryInput = document.getElementById('summary');
+    
+    if (!summaryInput) {
+        console.error('Summary input field not found!');
+        // Try again after a short delay
+        setTimeout(function() {
+            const retryInput = document.getElementById('summary');
+            if (!retryInput) {
+                console.error('Summary input still not found after retry!');
+                return;
+            }
+            initializeEditor(retryInput);
+        }, 100);
+        return;
+    }
+    
+    initializeEditor(summaryInput);
+}, 50);
+
+function initializeEditor(summaryInput) {
+    // Get the summary content from the brief object (JSON-encoded for safety)
+    const summaryContentFromBrief = {{ brief.summary|tojson|safe }};
+    
+    // Get initial content - prioritize hidden input value, then brief content
+    let initialContent = summaryInput.value || summaryInput.getAttribute('value') || '';
+    
+    // If hidden input is empty, use the brief content directly
+    if (!initialContent && summaryContentFromBrief) {
+        initialContent = summaryContentFromBrief;
+        // Set it on the hidden input for form submission
+        summaryInput.value = summaryContentFromBrief;
+    }
+    
+    // Debug logging
+    console.log('Summary input found:', !!summaryInput);
+    console.log('Input value attribute:', summaryInput.getAttribute('value'));
+    console.log('Input value property:', summaryInput.value);
+    console.log('Brief content available:', !!summaryContentFromBrief);
+    console.log('Initial content length:', initialContent ? initialContent.length : 0);
+    if (initialContent) {
+        console.log('Content preview:', initialContent.substring(0, 200));
+    }
+    
+    // Initialize Quill editor with existing content
+    const summaryQuill = window.initQuillEditor('summary-editor', 'summary', initialContent);
+    
+    if (!summaryQuill) {
+        console.error('Failed to initialize Quill editor!');
+        return;
+    }
+    
+    // Verify content was loaded
+    setTimeout(function() {
+        const editorContent = summaryQuill.root.innerHTML;
+        console.log('Editor content after init:', editorContent ? editorContent.substring(0, 200) : 'empty');
+        if (!editorContent || editorContent === '<p><br></p>' || editorContent === '<p></p>') {
+            console.warn('Editor appears empty after initialization!');
+            // Try to set content again
+            if (initialContent) {
+                try {
+                    const isHTML = /<[a-z][\s\S]*>/i.test(initialContent.trim());
+                    if (isHTML) {
+                        const delta = summaryQuill.clipboard.convert({ html: initialContent.trim() });
+                        summaryQuill.setContents(delta);
+                    } else {
+                        summaryQuill.setText(initialContent);
+                    }
+                } catch (e) {
+                    console.error('Error setting content:', e);
+                }
+            }
+        }
+    }, 100);
+    
+    // Ensure content is synced before form submit
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function() {
+            if (summaryQuill) {
+                const html = summaryQuill.root.innerHTML;
+                if (html !== '<p><br></p>' && html !== '<p></p>') {
+                    summaryInput.value = html;
+                } else {
+                    summaryInput.value = '';
+                }
+            }
+        });
+    }
+}
+</script>
 {% endblock %}
