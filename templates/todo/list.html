@@ -19,7 +19,7 @@
         <form method="POST" action="{{ url_for('todo_list') }}" class="todo-form">
             {{ form.hidden_tag() }}
             <div class="row w-100">
-                <div class="col-md-7">
+                <div class="col-md-5">
                     {{ form.description.label(class="form-label") }}
                     {{ form.description(class="form-control") }}
                     {% if form.description.errors %}
@@ -30,7 +30,7 @@
                         </div>
                     {% endif %}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     {{ form.due_date.label(class="form-label") }}
                     <div class="position-relative">
                         {{ form.due_date(class="form-control") }}
@@ -39,6 +39,17 @@
                     {% if form.due_date.errors %}
                         <div class="text-danger small mt-1">
                             {% for error in form.due_date.errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="col-md-3">
+                    {{ form.goal_id.label(class="form-label") }}
+                    {{ form.goal_id(class="form-control") }}
+                    {% if form.goal_id.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.goal_id.errors %}
                                 <div>{{ error }}</div>
                             {% endfor %}
                         </div>
@@ -71,6 +82,13 @@
                         {% if todo.due_date %}
                         <div class="todo-due-date">
                             <i class="fas fa-calendar"></i> Due: {{ todo.due_date.strftime('%Y-%m-%d') }}
+                        </div>
+                        {% endif %}
+                        {% if todo.goal %}
+                        <div class="todo-goal-link">
+                            <a href="{{ url_for('goals_list') }}" class="goal-link-badge">
+                                <i class="fas fa-bullseye"></i> {{ todo.goal.title }}
+                            </a>
                         </div>
                         {% endif %}
                         <div class="todo-meta">

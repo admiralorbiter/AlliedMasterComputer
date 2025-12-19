@@ -2,7 +2,7 @@
 
 from flask import flash, redirect, render_template, url_for, request, current_app, jsonify
 from flask_login import login_required, current_user
-from flask_app.models import Todo, SubTask, Event, db
+from flask_app.models import Todo, SubTask, Event, Goal, db
 from flask_app.forms import TodoForm, EventForm
 
 def register_todo_routes(app):
@@ -14,13 +14,22 @@ def register_todo_routes(app):
         """Display todo list page with form (single-page view)"""
         form = TodoForm()
         
+        # Populate goal choices
+        goals = Goal.find_by_user(current_user.id)
+        form.goal_id.choices = [(0, 'No goal')] + [(g.id, g.title) for g in goals]
+        
         try:
             # Handle form submission
             if form.validate_on_submit():
+                goal_id = None
+                if hasattr(form, 'goal_id') and form.goal_id.data and form.goal_id.data != 0:
+                    goal_id = form.goal_id.data
+                
                 new_todo, error = Todo.safe_create(
                     user_id=current_user.id,
                     description=form.description.data.strip(),
-                    due_date=form.due_date.data
+                    due_date=form.due_date.data,
+                    goal_id=goal_id
                 )
                 
                 if error:
@@ -36,6 +45,9 @@ def register_todo_routes(app):
             for todo in todos:
                 todo.subtasks_list = SubTask.find_by_todo(todo.id)
             
+            # Get goals for dropdown
+            goals = Goal.find_by_user(current_user.id)
+            
             # Get events split by status
             upcoming_events = Event.find_upcoming_by_user(current_user.id)
             past_unprocessed_events = Event.find_past_unprocessed_by_user(current_user.id)
@@ -44,7 +56,8 @@ def register_todo_routes(app):
             current_app.logger.info(f"Todo list accessed by {current_user.username}")
             return render_template('todo/list.html', 
                                  form=form, 
-                                 todos=todos, 
+                                 todos=todos,
+                                 goals=goals,
                                  upcoming_events=upcoming_events,
                                  past_unprocessed_events=past_unprocessed_events,
                                  processed_events=processed_events)
@@ -56,12 +69,14 @@ def register_todo_routes(app):
             # Load subtasks for each todo
             for todo in todos:
                 todo.subtasks_list = SubTask.find_by_todo(todo.id)
+            goals = Goal.find_by_user(current_user.id) if current_user.is_authenticated else []
             upcoming_events = Event.find_upcoming_by_user(current_user.id) if current_user.is_authenticated else []
             past_unprocessed_events = Event.find_past_unprocessed_by_user(current_user.id) if current_user.is_authenticated else []
             processed_events = Event.find_processed_by_user(current_user.id, limit=20) if current_user.is_authenticated else []
             return render_template('todo/list.html', 
                                  form=form, 
-                                 todos=todos, 
+                                 todos=todos,
+                                 goals=goals,
                                  upcoming_events=upcoming_events,
                                  past_unprocessed_events=past_unprocessed_events,
                                  processed_events=processed_events)

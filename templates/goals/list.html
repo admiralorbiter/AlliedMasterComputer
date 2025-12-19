@@ -1,0 +1,590 @@
+{% extends "base.html" %}
+
+{% block title %}Goals{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/goals.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="goals-container">
+    <div class="goals-main-layout">
+        <!-- Main Content: Goals -->
+        <div class="goals-main-content">
+            <div class="goals-header">
+                <h1><i class="fas fa-bullseye"></i> Goals</h1>
+            </div>
+            
+            <!-- Filter Tabs -->
+            <div class="goals-tabs">
+                <a href="{{ url_for('goals_list', type='all') }}" 
+                   class="goals-tab-btn {% if filter_type == 'all' %}active{% endif %}" 
+                   data-filter="all">
+                    All
+                </a>
+                <a href="{{ url_for('goals_list', type='professional') }}" 
+                   class="goals-tab-btn {% if filter_type == 'professional' %}active{% endif %}" 
+                   data-filter="professional">
+                    Professional
+                </a>
+                <a href="{{ url_for('goals_list', type='personal') }}" 
+                   class="goals-tab-btn {% if filter_type == 'personal' %}active{% endif %}" 
+                   data-filter="personal">
+                    Personal
+                </a>
+                <a href="{{ url_for('goals_list', type='project') }}" 
+                   class="goals-tab-btn {% if filter_type == 'project' %}active{% endif %}" 
+                   data-filter="project">
+                    Projects
+                </a>
+            </div>
+            
+            <!-- Add Goal Form -->
+            <div class="goals-form-container">
+                <form method="POST" action="{{ url_for('goals_list') }}" class="goals-form">
+                    {{ form.hidden_tag() }}
+                    <div class="row w-100 g-2">
+                        <div class="col-md-4">
+                            {{ form.title.label(class="form-label") }}
+                            {{ form.title(class="form-control") }}
+                            {% if form.title.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.title.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3">
+                            {{ form.goal_type.label(class="form-label") }}
+                            {{ form.goal_type(class="form-control") }}
+                            {% if form.goal_type.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.goal_type.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3" id="projectFieldContainer" style="display: none;">
+                            {{ form.project_id.label(class="form-label") }}
+                            {{ form.project_id(class="form-control") }}
+                            {% if form.project_id.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.project_id.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-2">
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </div>
+                    <div class="row w-100 mt-2">
+                        <div class="col-md-10">
+                            {{ form.description.label(class="form-label") }}
+                            {{ form.description(class="form-control") }}
+                            {% if form.description.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.description.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Goals List -->
+            <div class="goals-list-container">
+                {% if goals %}
+                    <ul class="goals-list">
+                        {% for goal in goals %}
+                        <li class="goal-item {% if goal.completed %}completed{% endif %}" data-goal-id="{{ goal.id }}">
+                            <div class="goal-checkbox-container">
+                                <input type="checkbox" 
+                                       class="goal-checkbox" 
+                                       {% if goal.completed %}checked{% endif %}
+                                       data-goal-id="{{ goal.id }}"
+                                       aria-label="Toggle goal completion">
+                            </div>
+                            <div class="goal-content">
+                                <div class="goal-header-row">
+                                    <div class="goal-title {% if goal.completed %}text-muted text-decoration-line-through{% endif %}">
+                                        {{ goal.title }}
+                                    </div>
+                                    <div class="goal-badges">
+                                        {% if goal.goal_type == 'professional' %}
+                                            <span class="badge bg-primary">Professional</span>
+                                        {% elif goal.goal_type == 'personal' %}
+                                            <span class="badge bg-success">Personal</span>
+                                        {% elif goal.goal_type == 'project' %}
+                                            <span class="badge bg-info">Project</span>
+                                        {% endif %}
+                                        {% if goal.project_name %}
+                                            <span class="badge bg-secondary">{{ goal.project_name }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% if goal.description %}
+                                <div class="goal-description {% if goal.completed %}text-muted{% endif %}">
+                                    {{ goal.description }}
+                                </div>
+                                {% endif %}
+                                <div class="goal-meta">
+                                    {% if goal.todos_count > 0 %}
+                                        <small class="text-muted">
+                                            <i class="fas fa-tasks"></i> {{ goal.todos_count }} linked todo{{ 's' if goal.todos_count != 1 else '' }}
+                                        </small>
+                                    {% endif %}
+                                    <small class="text-muted ms-2">
+                                        Created: {{ goal.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="goal-actions">
+                                <button type="button" 
+                                        class="btn btn-sm btn-outline-primary goal-edit-btn" 
+                                        data-goal-id="{{ goal.id }}"
+                                        aria-label="Edit goal">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-sm btn-outline-danger goal-delete-btn" 
+                                        data-goal-id="{{ goal.id }}"
+                                        aria-label="Delete goal">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-bullseye fa-3x"></i>
+                        <h3>No Goals Yet</h3>
+                        <p>Add your first goal using the form above.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Sidebar: Projects -->
+        <div class="projects-sidebar">
+            <div class="projects-sidebar-header">
+                <h2>Projects</h2>
+            </div>
+            
+            <!-- Add Project Form -->
+            <div class="project-add-form">
+                <input type="text" 
+                       class="form-control project-name-input" 
+                       placeholder="Project name" 
+                       id="projectNameInput">
+                <button type="button" 
+                        class="btn btn-sm btn-primary project-add-btn" 
+                        id="projectAddBtn">
+                    <i class="fas fa-plus"></i> Add
+                </button>
+            </div>
+            
+            <!-- Projects List -->
+            <div class="projects-list-container">
+                {% if projects %}
+                    <ul class="projects-list">
+                        {% for project in projects %}
+                        <li class="project-item" data-project-id="{{ project.id }}">
+                            <div class="project-content">
+                                <div class="project-name">{{ project.name }}</div>
+                                {% if project.description %}
+                                <div class="project-description">{{ project.description }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="project-actions">
+                                <button type="button" 
+                                        class="btn btn-sm btn-link project-edit-btn" 
+                                        data-project-id="{{ project.id }}"
+                                        title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-sm btn-link text-danger project-delete-btn" 
+                                        data-project-id="{{ project.id }}"
+                                        title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="projects-empty-state">
+                        <p class="text-muted">No projects yet.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Show/hide project field based on goal type
+    const goalTypeSelect = document.querySelector('select[name="goal_type"]');
+    const projectFieldContainer = document.getElementById('projectFieldContainer');
+    
+    if (goalTypeSelect && projectFieldContainer) {
+        function toggleProjectField() {
+            if (goalTypeSelect.value === 'project') {
+                projectFieldContainer.style.display = 'block';
+            } else {
+                projectFieldContainer.style.display = 'none';
+            }
+        }
+        
+        goalTypeSelect.addEventListener('change', toggleProjectField);
+        toggleProjectField(); // Initial check
+    }
+    
+    // Get CSRF token
+    function getCSRFToken() {
+        const metaTag = document.querySelector('meta[name="csrf-token"]');
+        if (metaTag) {
+            return metaTag.getAttribute('content');
+        }
+        const form = document.querySelector('.goals-form');
+        if (form) {
+            const csrfInput = form.querySelector('input[name="csrf_token"]');
+            if (csrfInput) {
+                return csrfInput.value;
+            }
+        }
+        return null;
+    }
+    
+    // Handle goal checkbox toggle
+    document.querySelectorAll('.goal-checkbox').forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            const goalId = this.dataset.goalId;
+            const goalItem = this.closest('.goal-item');
+            const title = goalItem.querySelector('.goal-title');
+            
+            // Optimistic UI update
+            if (this.checked) {
+                goalItem.classList.add('completed');
+                title.classList.add('text-muted', 'text-decoration-line-through');
+            } else {
+                goalItem.classList.remove('completed');
+                title.classList.remove('text-muted', 'text-decoration-line-through');
+            }
+            
+            // Send AJAX request
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/goals/${goalId}/toggle`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    // Revert optimistic update on error
+                    this.checked = !this.checked;
+                    if (this.checked) {
+                        goalItem.classList.add('completed');
+                        title.classList.add('text-muted', 'text-decoration-line-through');
+                    } else {
+                        goalItem.classList.remove('completed');
+                        title.classList.remove('text-muted', 'text-decoration-line-through');
+                    }
+                    alert('Error updating goal: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                // Revert optimistic update on error
+                this.checked = !this.checked;
+                if (this.checked) {
+                    goalItem.classList.add('completed');
+                    title.classList.add('text-muted', 'text-decoration-line-through');
+                } else {
+                    goalItem.classList.remove('completed');
+                    title.classList.remove('text-muted', 'text-decoration-line-through');
+                }
+                console.error('Error:', error);
+                alert('Error updating goal. Please try again.');
+            });
+        });
+    });
+    
+    // Handle goal delete
+    document.querySelectorAll('.goal-delete-btn').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const goalId = this.dataset.goalId;
+            const goalItem = this.closest('.goal-item');
+            
+            if (!confirm('Are you sure you want to delete this goal?')) {
+                return;
+            }
+            
+            goalItem.style.opacity = '0.5';
+            goalItem.style.pointerEvents = 'none';
+            
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/goals/${goalId}/delete`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    goalItem.style.transition = 'opacity 0.3s ease-out';
+                    goalItem.style.opacity = '0';
+                    setTimeout(function() {
+                        goalItem.remove();
+                        const goalsList = document.querySelector('.goals-list');
+                        if (goalsList && goalsList.children.length === 0) {
+                            location.reload();
+                        }
+                    }, 300);
+                } else {
+                    goalItem.style.opacity = '1';
+                    goalItem.style.pointerEvents = 'auto';
+                    alert('Error deleting goal: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                goalItem.style.opacity = '1';
+                goalItem.style.pointerEvents = 'auto';
+                console.error('Error:', error);
+                alert('Error deleting goal. Please try again.');
+            });
+        });
+    });
+    
+    // Handle goal edit (inline editing)
+    document.querySelectorAll('.goal-edit-btn').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const goalId = this.dataset.goalId;
+            const goalItem = this.closest('.goal-item');
+            const titleEl = goalItem.querySelector('.goal-title');
+            const descriptionEl = goalItem.querySelector('.goal-description');
+            const goalType = goalItem.querySelector('.badge').textContent.trim();
+            const projectName = goalItem.querySelector('.badge.bg-secondary') ? 
+                goalItem.querySelector('.badge.bg-secondary').textContent.trim() : null;
+            
+            const currentTitle = titleEl ? titleEl.textContent.trim() : '';
+            const currentDescription = descriptionEl ? descriptionEl.textContent.trim() : '';
+            
+            // Create edit form
+            const editForm = document.createElement('form');
+            editForm.className = 'goal-edit-form';
+            editForm.innerHTML = `
+                <input type="text" 
+                       class="form-control goal-edit-title" 
+                       value="${escapeHtml(currentTitle)}" 
+                       required>
+                <textarea class="form-control goal-edit-description mt-2" 
+                          rows="2">${escapeHtml(currentDescription)}</textarea>
+                <div class="goal-edit-actions mt-2">
+                    <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                    <button type="button" class="btn btn-sm btn-secondary goal-cancel-edit">Cancel</button>
+                </div>
+            `;
+            
+            const originalContent = goalItem.querySelector('.goal-content').innerHTML;
+            const originalActions = goalItem.querySelector('.goal-actions').innerHTML;
+            
+            goalItem.querySelector('.goal-content').innerHTML = '';
+            goalItem.querySelector('.goal-content').appendChild(editForm);
+            goalItem.querySelector('.goal-actions').style.display = 'none';
+            
+            // Handle cancel
+            editForm.querySelector('.goal-cancel-edit').addEventListener('click', function() {
+                goalItem.querySelector('.goal-content').innerHTML = originalContent;
+                goalItem.querySelector('.goal-actions').innerHTML = originalActions;
+                goalItem.querySelector('.goal-actions').style.display = '';
+                // Re-attach event listeners
+                location.reload();
+            });
+            
+            // Handle submit
+            editForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const newTitle = editForm.querySelector('.goal-edit-title').value.trim();
+                const newDescription = editForm.querySelector('.goal-edit-description').value.trim();
+                
+                if (!newTitle) {
+                    alert('Please fill in title');
+                    return;
+                }
+                
+                const headers = {
+                    'Content-Type': 'application/json',
+                };
+                const csrfToken = getCSRFToken();
+                if (csrfToken) {
+                    headers['X-CSRFToken'] = csrfToken;
+                }
+                
+                fetch(`/goals/${goalId}/update`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        title: newTitle,
+                        description: newDescription || null,
+                        goal_type: goalType.toLowerCase(),
+                        project_id: null
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error updating goal: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error updating goal. Please try again.');
+                });
+            });
+        });
+    });
+    
+    // Handle project add
+    const projectAddBtn = document.getElementById('projectAddBtn');
+    const projectNameInput = document.getElementById('projectNameInput');
+    
+    if (projectAddBtn && projectNameInput) {
+        function addProject() {
+            const name = projectNameInput.value.trim();
+            
+            if (!name) {
+                alert('Please enter a project name');
+                return;
+            }
+            
+            projectAddBtn.disabled = true;
+            
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch('/projects/create', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({
+                    name: name,
+                    description: null
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                projectAddBtn.disabled = false;
+                if (data.success) {
+                    projectNameInput.value = '';
+                    location.reload();
+                } else {
+                    alert('Error creating project: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                projectAddBtn.disabled = false;
+                console.error('Error:', error);
+                alert('Error creating project. Please try again.');
+            });
+        }
+        
+        projectAddBtn.addEventListener('click', addProject);
+        projectNameInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addProject();
+            }
+        });
+    }
+    
+    // Handle project delete
+    document.querySelectorAll('.project-delete-btn').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const projectId = this.dataset.projectId;
+            const projectItem = this.closest('.project-item');
+            
+            if (!confirm('Are you sure you want to delete this project?')) {
+                return;
+            }
+            
+            projectItem.style.opacity = '0.5';
+            projectItem.style.pointerEvents = 'none';
+            
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/projects/${projectId}/delete`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    projectItem.style.transition = 'opacity 0.3s ease-out';
+                    projectItem.style.opacity = '0';
+                    setTimeout(function() {
+                        projectItem.remove();
+                    }, 300);
+                } else {
+                    projectItem.style.opacity = '1';
+                    projectItem.style.pointerEvents = 'auto';
+                    alert('Error deleting project: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                projectItem.style.opacity = '1';
+                projectItem.style.pointerEvents = 'auto';
+                console.error('Error:', error);
+                alert('Error deleting project. Please try again.');
+            });
+        });
+    });
+    
+    // Helper function to escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+});
+</script>
+{% endblock %}
+

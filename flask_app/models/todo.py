@@ -39,6 +39,7 @@ class Todo(BaseModel):
     description = db.Column(db.Text, nullable=False)
     due_date = db.Column(db.Date, nullable=True)
     completed = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    goal_id = db.Column(db.Integer, db.ForeignKey('goals.id', ondelete='SET NULL'), nullable=True, index=True)
     
     # Relationship to User
     user = db.relationship('User', backref=db.backref('todos', lazy='dynamic', cascade='all, delete-orphan'))

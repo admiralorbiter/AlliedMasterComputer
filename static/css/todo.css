@@ -157,6 +157,7 @@
     margin-right: 0 !important;
 }
 
+.todo-form .col-md-5,
 .todo-form .col-md-7,
 .todo-form .col-md-3,
 .todo-form .col-md-2 {
@@ -166,6 +167,7 @@
     align-items: center;
 }
 
+.todo-form .col-md-5,
 .todo-form .col-md-7 {
     flex: 1 !important;
     max-width: none !important;

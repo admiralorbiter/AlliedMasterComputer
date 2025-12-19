@@ -1,7 +1,7 @@
 # flask_app/forms/todo.py
 
 from flask_wtf import FlaskForm
-from wtforms import StringField, DateField, SubmitField, TextAreaField
+from wtforms import StringField, DateField, SubmitField, TextAreaField, SelectField
 from wtforms.validators import DataRequired, Length, Optional
 
 class TodoForm(FlaskForm):
@@ -23,6 +23,13 @@ class TodoForm(FlaskForm):
         render_kw={
             "placeholder": "mm/dd/yyyy"
         }
+    )
+    
+    goal_id = SelectField(
+        'Goal',
+        choices=[],  # Will be populated dynamically
+        validators=[Optional()],
+        coerce=int
     )
     
     submit = SubmitField('Add Todo')
