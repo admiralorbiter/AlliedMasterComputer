@@ -39,6 +39,14 @@ class ResearchBrief(BaseModel):
         lazy='dynamic'
     )
     
+    # Many-to-many relationship with Project (imported from project.py)
+    projects = db.relationship(
+        'Project',
+        secondary='project_research_briefs',
+        back_populates='research_briefs',
+        lazy='dynamic'
+    )
+    
     def __repr__(self):
         return f'<ResearchBrief {self.id}: {self.title[:50]}>'
     

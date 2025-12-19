@@ -196,13 +196,13 @@
                     <ul class="projects-list">
                         {% for project in projects %}
                         <li class="project-item" data-project-id="{{ project.id }}">
-                            <div class="project-content">
+                            <div class="project-content" style="cursor: pointer;" onclick="window.location.href='{{ url_for('project_view', id=project.id) }}'">
                                 <div class="project-name">{{ project.name }}</div>
                                 {% if project.description %}
                                 <div class="project-description">{{ project.description }}</div>
                                 {% endif %}
                             </div>
-                            <div class="project-actions">
+                            <div class="project-actions" onclick="event.stopPropagation();">
                                 <button type="button" 
                                         class="btn btn-sm btn-link project-edit-btn" 
                                         data-project-id="{{ project.id }}"

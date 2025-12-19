@@ -9,7 +9,9 @@ from .admin import AdminLog, SystemMetrics
 from .research_brief import ResearchBrief
 from .tag import Tag
 from .todo import Todo, SubTask, Event
-from .project import Project
+from .project import Project, project_research_briefs
 from .goal import Goal
+from .project_note import ProjectNote
+from .project_link import ProjectLink
 
-__all__ = ['db', 'BaseModel', 'User', 'AdminLog', 'SystemMetrics', 'ResearchBrief', 'Tag', 'Todo', 'SubTask', 'Event', 'Project', 'Goal']
+__all__ = ['db', 'BaseModel', 'User', 'AdminLog', 'SystemMetrics', 'ResearchBrief', 'Tag', 'Todo', 'SubTask', 'Event', 'Project', 'project_research_briefs', 'Goal', 'ProjectNote', 'ProjectLink']

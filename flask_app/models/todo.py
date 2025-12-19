@@ -40,6 +40,7 @@ class Todo(BaseModel):
     due_date = db.Column(db.Date, nullable=True)
     completed = db.Column(db.Boolean, default=False, nullable=False, index=True)
     goal_id = db.Column(db.Integer, db.ForeignKey('goals.id', ondelete='SET NULL'), nullable=True, index=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='SET NULL'), nullable=True, index=True)
     
     # Relationship to User
     user = db.relationship('User', backref=db.backref('todos', lazy='dynamic', cascade='all, delete-orphan'))
@@ -68,6 +69,18 @@ class Todo(BaseModel):
             from flask import current_app
             current_app.logger.error(f"Database error finding todo {todo_id} for user {user_id}: {str(e)}")
             return None
+    
+    @staticmethod
+    def find_by_project(project_id, user_id):
+        """Find all todos for a project, ordered by created_at descending"""
+        try:
+            return Todo.query.filter_by(project_id=project_id, user_id=user_id)\
+                .order_by(Todo.created_at.desc())\
+                .all()
+        except Exception as e:
+            from flask import current_app
+            current_app.logger.error(f"Database error finding todos for project {project_id}: {str(e)}")
+            return []
 
 class Event(BaseModel):
     """Model for storing user upcoming events"""

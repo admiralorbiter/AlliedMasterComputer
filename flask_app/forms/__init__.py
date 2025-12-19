@@ -8,7 +8,8 @@ from .admin import CreateUserForm, UpdateUserForm, ChangePasswordForm, BulkUserA
 from .research import ResearchBriefForm, EditBriefForm
 from .todo import TodoForm, EventForm
 from .goal import GoalForm
-from .project import ProjectForm
+from .project import ProjectForm, ProjectNoteForm, ProjectLinkForm
 
 __all__ = ['LoginForm', 'CreateUserForm', 'UpdateUserForm', 'ChangePasswordForm', 'BulkUserActionForm', 
-           'ResearchBriefForm', 'EditBriefForm', 'TodoForm', 'EventForm', 'GoalForm', 'ProjectForm']
+           'ResearchBriefForm', 'EditBriefForm', 'TodoForm', 'EventForm', 'GoalForm', 'ProjectForm', 
+           'ProjectNoteForm', 'ProjectLinkForm']

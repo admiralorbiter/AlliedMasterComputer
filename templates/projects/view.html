@@ -1,0 +1,1093 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/projects.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="project-view-container">
+    <div class="project-header">
+        <div class="project-header-content">
+            <a href="{{ url_for('projects_list') }}" class="btn btn-outline-secondary btn-sm back-btn">
+                <i class="fas fa-arrow-left"></i> Back to Projects
+            </a>
+            <h1>{{ project.name }}</h1>
+            {% if project.description %}
+            <p class="project-description-text">{{ project.description }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <ul class="nav nav-tabs project-tabs" id="projectTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button" role="tab">
+                <i class="fas fa-sticky-note"></i> Notes
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="links-tab" data-bs-toggle="tab" data-bs-target="#links" type="button" role="tab">
+                <i class="fas fa-link"></i> Links
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="research-tab" data-bs-toggle="tab" data-bs-target="#research" type="button" role="tab">
+                <i class="fas fa-book"></i> Research Briefs
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="todos-tab" data-bs-toggle="tab" data-bs-target="#todos" type="button" role="tab">
+                <i class="fas fa-tasks"></i> Todos
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content project-tab-content" id="projectTabContent">
+        <!-- Notes Tab -->
+        <div class="tab-pane fade show active" id="notes" role="tabpanel">
+            <div class="section-container">
+                <div class="section-header">
+                    <h3>Notes</h3>
+                    <button type="button" class="btn btn-primary btn-sm" id="addNoteBtn">
+                        <i class="fas fa-plus"></i> Add Note
+                    </button>
+                </div>
+                
+                <!-- Add Note Form (hidden by default) -->
+                <div class="add-form-container" id="addNoteForm" style="display: none;">
+                    <form id="noteForm">
+                        <div class="mb-3">
+                            <textarea class="form-control" id="noteContent" rows="4" placeholder="Enter note content..." required></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Save Note</button>
+                            <button type="button" class="btn btn-secondary" id="cancelNoteBtn">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Notes List -->
+                <div class="items-list" id="notesList">
+                    {% if notes %}
+                        {% for note in notes %}
+                        <div class="item-card note-item" data-note-id="{{ note.id }}">
+                            <div class="item-content">
+                                <div class="note-text">{{ note.content }}</div>
+                                <div class="item-meta">
+                                    <small class="text-muted">
+                                        Created: {{ note.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                        {% if note.updated_at != note.created_at %}
+                                        | Updated: {{ note.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="item-actions">
+                                <button type="button" class="btn btn-sm btn-link note-edit-btn" data-note-id="{{ note.id }}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-link text-danger note-delete-btn" data-note-id="{{ note.id }}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">
+                            <p>No notes yet. Click "Add Note" to create one.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Links Tab -->
+        <div class="tab-pane fade" id="links" role="tabpanel">
+            <div class="section-container">
+                <div class="section-header">
+                    <h3>Links</h3>
+                    <button type="button" class="btn btn-primary btn-sm" id="addLinkBtn">
+                        <i class="fas fa-plus"></i> Add Link
+                    </button>
+                </div>
+                
+                <!-- Add Link Form (hidden by default) -->
+                <div class="add-form-container" id="addLinkForm" style="display: none;">
+                    <form id="linkForm">
+                        <div class="mb-3">
+                            <input type="text" class="form-control" id="linkTitle" placeholder="Link title..." required>
+                        </div>
+                        <div class="mb-3">
+                            <input type="url" class="form-control" id="linkUrl" placeholder="https://example.com" required>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Save Link</button>
+                            <button type="button" class="btn btn-secondary" id="cancelLinkBtn">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Links List -->
+                <div class="items-list" id="linksList">
+                    {% if links %}
+                        {% for link in links %}
+                        <div class="item-card link-item" data-link-id="{{ link.id }}">
+                            <div class="item-content">
+                                <div class="link-title">
+                                    <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer">
+                                        <i class="fas fa-external-link-alt"></i> {{ link.title }}
+                                    </a>
+                                </div>
+                                <div class="link-url text-muted small">{{ link.url }}</div>
+                                <div class="item-meta">
+                                    <small class="text-muted">
+                                        Created: {{ link.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                        {% if link.updated_at != link.created_at %}
+                                        | Updated: {{ link.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="item-actions">
+                                <button type="button" class="btn btn-sm btn-link link-edit-btn" data-link-id="{{ link.id }}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-link text-danger link-delete-btn" data-link-id="{{ link.id }}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">
+                            <p>No links yet. Click "Add Link" to create one.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Research Briefs Tab -->
+        <div class="tab-pane fade" id="research" role="tabpanel">
+            <div class="section-container">
+                <div class="section-header">
+                    <h3>Research Briefs</h3>
+                    <button type="button" class="btn btn-primary btn-sm" id="linkBriefBtn">
+                        <i class="fas fa-plus"></i> Link Brief
+                    </button>
+                </div>
+                
+                <!-- Link Brief Form (hidden by default) -->
+                <div class="add-form-container" id="linkBriefForm" style="display: none;">
+                    <form id="briefLinkForm">
+                        <div class="mb-3">
+                            <select class="form-control" id="briefSelect" required>
+                                <option value="">Select a research brief...</option>
+                                {% for brief in available_briefs %}
+                                <option value="{{ brief.id }}">{{ brief.title }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Link Brief</button>
+                            <button type="button" class="btn btn-secondary" id="cancelBriefBtn">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Research Briefs List -->
+                <div class="items-list" id="briefsList">
+                    {% if research_briefs %}
+                        {% for brief in research_briefs %}
+                        <div class="item-card brief-item" data-brief-id="{{ brief.id }}">
+                            <div class="item-content">
+                                <div class="brief-title">
+                                    <a href="{{ url_for('research_view', id=brief.id) }}" target="_blank">
+                                        {{ brief.title }}
+                                    </a>
+                                </div>
+                                <div class="item-meta">
+                                    <small class="text-muted">
+                                        Created: {{ brief.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="item-actions">
+                                <button type="button" class="btn btn-sm btn-link text-danger brief-unlink-btn" data-brief-id="{{ brief.id }}">
+                                    <i class="fas fa-unlink"></i> Unlink
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">
+                            <p>No research briefs linked yet. Click "Link Brief" to add one.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Todos Tab -->
+        <div class="tab-pane fade" id="todos" role="tabpanel">
+            <div class="section-container">
+                <div class="section-header">
+                    <h3>Todos</h3>
+                    <button type="button" class="btn btn-primary btn-sm" id="addTodoBtn">
+                        <i class="fas fa-plus"></i> Add Todo
+                    </button>
+                </div>
+                
+                <!-- Add Todo Form (hidden by default) -->
+                <div class="add-form-container" id="addTodoForm" style="display: none;">
+                    <form id="todoForm">
+                        <div class="mb-3">
+                            <input type="text" class="form-control" id="todoDescription" placeholder="Enter todo description..." required>
+                        </div>
+                        <div class="mb-3">
+                            <input type="date" class="form-control" id="todoDueDate" placeholder="Due date (optional)">
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Save Todo</button>
+                            <button type="button" class="btn btn-secondary" id="cancelTodoBtn">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Todos List -->
+                <div class="items-list" id="todosList">
+                    {% if todos %}
+                        {% for todo in todos %}
+                        <div class="item-card todo-item {% if todo.completed %}completed{% endif %}" data-todo-id="{{ todo.id }}">
+                            <div class="todo-checkbox-container" style="margin-right: 1rem;">
+                                <input type="checkbox" 
+                                       class="todo-checkbox" 
+                                       {% if todo.completed %}checked{% endif %}
+                                       data-todo-id="{{ todo.id }}"
+                                       aria-label="Toggle todo completion">
+                            </div>
+                            <div class="item-content" style="flex: 1;">
+                                <div class="todo-description {% if todo.completed %}text-muted text-decoration-line-through{% endif %}">
+                                    {{ todo.description }}
+                                </div>
+                                {% if todo.due_date %}
+                                <div class="todo-due-date" style="margin-top: 0.5rem;">
+                                    <i class="fas fa-calendar"></i> Due: {{ todo.due_date.strftime('%Y-%m-%d') }}
+                                </div>
+                                {% endif %}
+                                <div class="item-meta" style="margin-top: 0.5rem;">
+                                    <small class="text-muted">Created: {{ todo.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                </div>
+                                
+                                <!-- Subtasks Section -->
+                                <div class="subtasks-container" data-todo-id="{{ todo.id }}" style="margin-top: 0.75rem;">
+                                    <div class="subtasks-list">
+                                        {% if todo.subtasks_list %}
+                                            {% for subtask in todo.subtasks_list %}
+                                            <div class="subtask-item {% if subtask.completed %}completed{% endif %}" data-subtask-id="{{ subtask.id }}" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                                <input type="checkbox" 
+                                                       class="subtask-checkbox" 
+                                                       {% if subtask.completed %}checked{% endif %}
+                                                       data-todo-id="{{ todo.id }}"
+                                                       data-subtask-id="{{ subtask.id }}"
+                                                       aria-label="Toggle subtask completion">
+                                                <span class="subtask-description {% if subtask.completed %}text-muted text-decoration-line-through{% endif %}">
+                                                    {{ subtask.description }}
+                                                </span>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-link text-danger subtask-delete-btn p-0" 
+                                                        data-todo-id="{{ todo.id }}"
+                                                        data-subtask-id="{{ subtask.id }}"
+                                                        aria-label="Delete subtask"
+                                                        title="Delete subtask">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </div>
+                                    <div class="subtask-add-form" style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                                        <input type="text" 
+                                               class="subtask-input form-control" 
+                                               placeholder="Add a subtask..." 
+                                               data-todo-id="{{ todo.id }}"
+                                               style="display: none;">
+                                        <button type="button" 
+                                                class="subtask-add-btn subtask-toggle-btn btn btn-sm btn-link" 
+                                                data-todo-id="{{ todo.id }}"
+                                                title="Add subtask"
+                                                aria-label="Add subtask">
+                                            <i class="fas fa-plus"></i> Add Subtask
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="item-actions">
+                                <button type="button" class="btn btn-sm btn-link todo-edit-btn" data-todo-id="{{ todo.id }}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-link text-danger todo-delete-btn" data-todo-id="{{ todo.id }}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">
+                            <p>No todos yet. Click "Add Todo" to create one.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const projectId = {{ project.id }};
+    
+    // Get CSRF token
+    function getCSRFToken() {
+        const metaTag = document.querySelector('meta[name="csrf-token"]');
+        if (metaTag) {
+            return metaTag.getAttribute('content');
+        }
+        return null;
+    }
+    
+    // Helper to escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Helper to convert newlines to <br>
+    function nl2br(text) {
+        return text.replace(/\n/g, '<br>');
+    }
+    
+    // Notes functionality
+    const addNoteBtn = document.getElementById('addNoteBtn');
+    const addNoteForm = document.getElementById('addNoteForm');
+    const cancelNoteBtn = document.getElementById('cancelNoteBtn');
+    const noteForm = document.getElementById('noteForm');
+    const notesList = document.getElementById('notesList');
+    
+    if (addNoteBtn) {
+        addNoteBtn.addEventListener('click', function() {
+            addNoteForm.style.display = 'block';
+            document.getElementById('noteContent').focus();
+        });
+    }
+    
+    if (cancelNoteBtn) {
+        cancelNoteBtn.addEventListener('click', function() {
+            addNoteForm.style.display = 'none';
+            document.getElementById('noteContent').value = '';
+        });
+    }
+    
+    if (noteForm) {
+        noteForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const content = document.getElementById('noteContent').value.trim();
+            
+            if (!content) {
+                alert('Note content is required');
+                return;
+            }
+            
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/projects/${projectId}/notes/create`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({ content: content })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error creating note: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error creating note. Please try again.');
+            });
+        });
+    }
+    
+    // Note edit/delete
+    document.querySelectorAll('.note-edit-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const noteId = this.dataset.noteId;
+            const noteItem = document.querySelector(`.note-item[data-note-id="${noteId}"]`);
+            const noteText = noteItem.querySelector('.note-text');
+            const currentContent = noteText.textContent.trim();
+            
+            const newContent = prompt('Edit note:', currentContent);
+            if (newContent === null || newContent.trim() === currentContent) return;
+            
+            if (!newContent.trim()) {
+                alert('Note content cannot be empty');
+                return;
+            }
+            
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/projects/${projectId}/notes/${noteId}/update`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({ content: newContent.trim() })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error updating note: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating note. Please try again.');
+            });
+        });
+    });
+    
+    document.querySelectorAll('.note-delete-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const noteId = this.dataset.noteId;
+            if (!confirm('Are you sure you want to delete this note?')) return;
+            
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/projects/${projectId}/notes/${noteId}/delete`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error deleting note: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error deleting note. Please try again.');
+            });
+        });
+    });
+    
+    // Links functionality
+    const addLinkBtn = document.getElementById('addLinkBtn');
+    const addLinkForm = document.getElementById('addLinkForm');
+    const cancelLinkBtn = document.getElementById('cancelLinkBtn');
+    const linkForm = document.getElementById('linkForm');
+    
+    if (addLinkBtn) {
+        addLinkBtn.addEventListener('click', function() {
+            addLinkForm.style.display = 'block';
+            document.getElementById('linkTitle').focus();
+        });
+    }
+    
+    if (cancelLinkBtn) {
+        cancelLinkBtn.addEventListener('click', function() {
+            addLinkForm.style.display = 'none';
+            document.getElementById('linkTitle').value = '';
+            document.getElementById('linkUrl').value = '';
+        });
+    }
+    
+    if (linkForm) {
+        linkForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const title = document.getElementById('linkTitle').value.trim();
+            const url = document.getElementById('linkUrl').value.trim();
+            
+            if (!title || !url) {
+                alert('Title and URL are required');
+                return;
+            }
+            
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/projects/${projectId}/links/create`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({ title: title, url: url })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error creating link: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error creating link. Please try again.');
+            });
+        });
+    }
+    
+    // Link edit/delete
+    document.querySelectorAll('.link-edit-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const linkId = this.dataset.linkId;
+            const linkItem = document.querySelector(`.link-item[data-link-id="${linkId}"]`);
+            const linkTitleEl = linkItem.querySelector('.link-title a');
+            const linkUrlEl = linkItem.querySelector('.link-url');
+            const currentTitle = linkTitleEl.textContent.trim();
+            const currentUrl = linkUrlEl.textContent.trim();
+            
+            const newTitle = prompt('Edit link title:', currentTitle);
+            if (newTitle === null) return;
+            
+            const newUrl = prompt('Edit link URL:', currentUrl);
+            if (newUrl === null) return;
+            
+            if (!newTitle.trim() || !newUrl.trim()) {
+                alert('Title and URL are required');
+                return;
+            }
+            
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/projects/${projectId}/links/${linkId}/update`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({ title: newTitle.trim(), url: newUrl.trim() })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error updating link: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating link. Please try again.');
+            });
+        });
+    });
+    
+    document.querySelectorAll('.link-delete-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const linkId = this.dataset.linkId;
+            if (!confirm('Are you sure you want to delete this link?')) return;
+            
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/projects/${projectId}/links/${linkId}/delete`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error deleting link: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error deleting link. Please try again.');
+            });
+        });
+    });
+    
+    // Research briefs functionality
+    const linkBriefBtn = document.getElementById('linkBriefBtn');
+    const linkBriefForm = document.getElementById('linkBriefForm');
+    const cancelBriefBtn = document.getElementById('cancelBriefBtn');
+    const briefLinkForm = document.getElementById('briefLinkForm');
+    
+    if (linkBriefBtn) {
+        linkBriefBtn.addEventListener('click', function() {
+            linkBriefForm.style.display = 'block';
+        });
+    }
+    
+    if (cancelBriefBtn) {
+        cancelBriefBtn.addEventListener('click', function() {
+            linkBriefForm.style.display = 'none';
+            document.getElementById('briefSelect').value = '';
+        });
+    }
+    
+    if (briefLinkForm) {
+        briefLinkForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const briefId = document.getElementById('briefSelect').value;
+            
+            if (!briefId) {
+                alert('Please select a research brief');
+                return;
+            }
+            
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/projects/${projectId}/research-briefs/link`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({ brief_id: parseInt(briefId) })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error linking brief: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error linking brief. Please try again.');
+            });
+        });
+    }
+    
+    // Unlink brief
+    document.querySelectorAll('.brief-unlink-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const briefId = this.dataset.briefId;
+            if (!confirm('Are you sure you want to unlink this research brief?')) return;
+            
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/projects/${projectId}/research-briefs/${briefId}/unlink`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error unlinking brief: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error unlinking brief. Please try again.');
+            });
+        });
+    });
+    
+    // Todos functionality
+    const addTodoBtn = document.getElementById('addTodoBtn');
+    const addTodoForm = document.getElementById('addTodoForm');
+    const cancelTodoBtn = document.getElementById('cancelTodoBtn');
+    const todoForm = document.getElementById('todoForm');
+    
+    if (addTodoBtn) {
+        addTodoBtn.addEventListener('click', function() {
+            addTodoForm.style.display = 'block';
+            document.getElementById('todoDescription').focus();
+        });
+    }
+    
+    if (cancelTodoBtn) {
+        cancelTodoBtn.addEventListener('click', function() {
+            addTodoForm.style.display = 'none';
+            document.getElementById('todoDescription').value = '';
+            document.getElementById('todoDueDate').value = '';
+        });
+    }
+    
+    if (todoForm) {
+        todoForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const description = document.getElementById('todoDescription').value.trim();
+            const dueDate = document.getElementById('todoDueDate').value;
+            
+            if (!description) {
+                alert('Todo description is required');
+                return;
+            }
+            
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/projects/${projectId}/todos/create`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({ 
+                    description: description,
+                    due_date: dueDate || null
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error creating todo: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error creating todo. Please try again.');
+            });
+        });
+    }
+    
+    // Todo checkbox toggle
+    document.querySelectorAll('.todo-checkbox').forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            const todoId = this.dataset.todoId;
+            const todoItem = this.closest('.todo-item');
+            
+            // Optimistic UI update
+            if (this.checked) {
+                todoItem.classList.add('completed');
+            } else {
+                todoItem.classList.remove('completed');
+            }
+            
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/projects/${projectId}/todos/${todoId}/toggle`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    // Revert on error
+                    this.checked = !this.checked;
+                    if (this.checked) {
+                        todoItem.classList.add('completed');
+                    } else {
+                        todoItem.classList.remove('completed');
+                    }
+                    alert('Error updating todo: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                // Revert on error
+                this.checked = !this.checked;
+                if (this.checked) {
+                    todoItem.classList.add('completed');
+                } else {
+                    todoItem.classList.remove('completed');
+                }
+                console.error('Error:', error);
+                alert('Error updating todo. Please try again.');
+            });
+        });
+    });
+    
+    // Todo edit
+    document.querySelectorAll('.todo-edit-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const todoId = this.dataset.todoId;
+            const todoItem = document.querySelector(`.todo-item[data-todo-id="${todoId}"]`);
+            const descriptionEl = todoItem.querySelector('.todo-description');
+            const dueDateEl = todoItem.querySelector('.todo-due-date');
+            
+            const currentDescription = descriptionEl.textContent.trim();
+            const currentDueDate = dueDateEl ? dueDateEl.textContent.match(/\d{4}-\d{2}-\d{2}/)?.[0] : '';
+            
+            const newDescription = prompt('Edit todo:', currentDescription);
+            if (newDescription === null) return;
+            
+            const newDueDate = prompt('Edit due date (YYYY-MM-DD) or leave empty:', currentDueDate || '');
+            
+            if (!newDescription.trim()) {
+                alert('Todo description cannot be empty');
+                return;
+            }
+            
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/projects/${projectId}/todos/${todoId}/update`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({ 
+                    description: newDescription.trim(),
+                    due_date: newDueDate.trim() || null
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error updating todo: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating todo. Please try again.');
+            });
+        });
+    });
+    
+    // Todo delete
+    document.querySelectorAll('.todo-delete-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const todoId = this.dataset.todoId;
+            if (!confirm('Are you sure you want to delete this todo?')) return;
+            
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/projects/${projectId}/todos/${todoId}/delete`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error deleting todo: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error deleting todo. Please try again.');
+            });
+        });
+    });
+    
+    // Subtask functionality
+    document.querySelectorAll('.subtask-toggle-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const todoId = this.dataset.todoId;
+            const subtaskInput = document.querySelector(`.subtask-input[data-todo-id="${todoId}"]`);
+            if (subtaskInput) {
+                subtaskInput.style.display = subtaskInput.style.display === 'none' ? 'block' : 'none';
+                if (subtaskInput.style.display === 'block') {
+                    subtaskInput.focus();
+                }
+            }
+        });
+    });
+    
+    document.querySelectorAll('.subtask-input').forEach(function(input) {
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const todoId = this.dataset.todoId;
+                const description = this.value.trim();
+                
+                if (!description) {
+                    alert('Subtask description is required');
+                    return;
+                }
+                
+                const headers = {
+                    'Content-Type': 'application/json',
+                };
+                const csrfToken = getCSRFToken();
+                if (csrfToken) {
+                    headers['X-CSRFToken'] = csrfToken;
+                }
+                
+                fetch(`/projects/${projectId}/todos/${todoId}/subtasks/create`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({ description: description })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error creating subtask: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error creating subtask. Please try again.');
+                });
+            }
+        });
+    });
+    
+    // Subtask checkbox toggle
+    document.querySelectorAll('.subtask-checkbox').forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            const todoId = this.dataset.todoId;
+            const subtaskId = this.dataset.subtaskId;
+            const subtaskItem = this.closest('.subtask-item');
+            
+            // Optimistic UI update
+            if (this.checked) {
+                subtaskItem.classList.add('completed');
+            } else {
+                subtaskItem.classList.remove('completed');
+            }
+            
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/projects/${projectId}/todos/${todoId}/subtasks/${subtaskId}/toggle`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    // Revert on error
+                    this.checked = !this.checked;
+                    if (this.checked) {
+                        subtaskItem.classList.add('completed');
+                    } else {
+                        subtaskItem.classList.remove('completed');
+                    }
+                    alert('Error updating subtask: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                // Revert on error
+                this.checked = !this.checked;
+                if (this.checked) {
+                    subtaskItem.classList.add('completed');
+                } else {
+                    subtaskItem.classList.remove('completed');
+                }
+                console.error('Error:', error);
+                alert('Error updating subtask. Please try again.');
+            });
+        });
+    });
+    
+    // Subtask delete
+    document.querySelectorAll('.subtask-delete-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const todoId = this.dataset.todoId;
+            const subtaskId = this.dataset.subtaskId;
+            if (!confirm('Are you sure you want to delete this subtask?')) return;
+            
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/projects/${projectId}/todos/${todoId}/subtasks/${subtaskId}/delete`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error deleting subtask: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error deleting subtask. Please try again.');
+            });
+        });
+    });
+});
+</script>
+{% endblock %}
+

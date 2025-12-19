@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}Projects{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/projects.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="projects-container">
+    <div class="projects-header">
+        <h1><i class="fas fa-folder"></i> Projects</h1>
+    </div>
+    
+    <!-- Add Project Form -->
+    <div class="projects-form-container">
+        <form method="POST" action="{{ url_for('projects_list') }}" class="projects-form">
+            {{ form.hidden_tag() }}
+            <div class="row w-100 g-2">
+                <div class="col-md-8">
+                    {{ form.name.label(class="form-label") }}
+                    {{ form.name(class="form-control") }}
+                    {% if form.name.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.name.errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="col-md-4">
+                    {{ form.submit(class="btn btn-primary") }}
+                </div>
+            </div>
+            <div class="row w-100 mt-2">
+                <div class="col-md-12">
+                    {{ form.description.label(class="form-label") }}
+                    {{ form.description(class="form-control") }}
+                    {% if form.description.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.description.errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Projects List -->
+    <div class="projects-list-container">
+        {% if projects %}
+            <div class="projects-grid">
+                {% for project in projects %}
+                <div class="project-card" onclick="window.location.href='{{ url_for('project_view', id=project.id) }}'">
+                    <div class="project-card-header">
+                        <h3 class="project-card-title">{{ project.name }}</h3>
+                        <div class="project-card-actions" onclick="event.stopPropagation();">
+                            <button type="button" 
+                                    class="btn btn-sm btn-link project-edit-btn" 
+                                    data-project-id="{{ project.id }}"
+                                    title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button type="button" 
+                                    class="btn btn-sm btn-link text-danger project-delete-btn" 
+                                    data-project-id="{{ project.id }}"
+                                    title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {% if project.description %}
+                    <div class="project-card-description">
+                        {{ project.description }}
+                    </div>
+                    {% endif %}
+                    <div class="project-card-meta">
+                        <small class="text-muted">
+                            <i class="fas fa-calendar"></i> Created: {{ project.created_at.strftime('%Y-%m-%d') }}
+                        </small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-folder-open fa-3x"></i>
+                <h3>No Projects Yet</h3>
+                <p>Add your first project using the form above.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Get CSRF token
+    function getCSRFToken() {
+        const metaTag = document.querySelector('meta[name="csrf-token"]');
+        if (metaTag) {
+            return metaTag.getAttribute('content');
+        }
+        const form = document.querySelector('.projects-form');
+        if (form) {
+            const csrfInput = form.querySelector('input[name="csrf_token"]');
+            if (csrfInput) {
+                return csrfInput.value;
+            }
+        }
+        return null;
+    }
+    
+    // Handle project delete
+    document.querySelectorAll('.project-delete-btn').forEach(function(button) {
+        button.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const projectId = this.dataset.projectId;
+            const projectCard = this.closest('.project-card');
+            
+            if (!confirm('Are you sure you want to delete this project?')) {
+                return;
+            }
+            
+            projectCard.style.opacity = '0.5';
+            projectCard.style.pointerEvents = 'none';
+            
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/projects/${projectId}/delete`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    projectCard.style.transition = 'opacity 0.3s ease-out';
+                    projectCard.style.opacity = '0';
+                    setTimeout(function() {
+                        projectCard.remove();
+                        const projectsGrid = document.querySelector('.projects-grid');
+                        if (projectsGrid && projectsGrid.children.length === 0) {
+                            location.reload();
+                        }
+                    }, 300);
+                } else {
+                    projectCard.style.opacity = '1';
+                    projectCard.style.pointerEvents = 'auto';
+                    alert('Error deleting project: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                projectCard.style.opacity = '1';
+                projectCard.style.pointerEvents = 'auto';
+                console.error('Error:', error);
+                alert('Error deleting project. Please try again.');
+            });
+        });
+    });
+    
+    // Handle project edit (inline editing)
+    document.querySelectorAll('.project-edit-btn').forEach(function(button) {
+        button.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const projectId = this.dataset.projectId;
+            const projectCard = this.closest('.project-card');
+            const titleEl = projectCard.querySelector('.project-card-title');
+            const descriptionEl = projectCard.querySelector('.project-card-description');
+            
+            const currentName = titleEl ? titleEl.textContent.trim() : '';
+            const currentDescription = descriptionEl ? descriptionEl.textContent.trim() : '';
+            
+            const newName = prompt('Enter new project name:', currentName);
+            if (newName === null) return;
+            
+            if (!newName.trim()) {
+                alert('Project name cannot be empty');
+                return;
+            }
+            
+            const newDescription = prompt('Enter new project description (optional):', currentDescription || '');
+            
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            
+            fetch(`/projects/${projectId}/update`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({
+                    name: newName.trim(),
+                    description: newDescription.trim() || null
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error updating project: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating project. Please try again.');
+            });
+        });
+    });
+});
+</script>
+{% endblock %}
+

@@ -2,6 +2,15 @@
 
 from .base import db, BaseModel
 
+# Association table for many-to-many relationship between Project and ResearchBrief
+project_research_briefs = db.Table(
+    'project_research_briefs',
+    db.Column('project_id', db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('research_brief_id', db.Integer, db.ForeignKey('research_briefs.id', ondelete='CASCADE'), primary_key=True),
+    db.Index('idx_project_research_briefs_project', 'project_id'),
+    db.Index('idx_project_research_briefs_brief', 'research_brief_id')
+)
+
 class Project(BaseModel):
     """Model for storing user projects"""
     __tablename__ = 'projects'
@@ -16,6 +25,17 @@ class Project(BaseModel):
     
     # Relationship to Goals
     goals = db.relationship('Goal', backref='project', lazy='dynamic', cascade='all, delete-orphan')
+    
+    # Relationship to Todos
+    todos = db.relationship('Todo', backref='project', lazy='dynamic', cascade='all, delete-orphan')
+    
+    # Many-to-many relationship with ResearchBrief
+    research_briefs = db.relationship(
+        'ResearchBrief',
+        secondary=project_research_briefs,
+        back_populates='projects',
+        lazy='dynamic'
+    )
     
     def __repr__(self):
         return f'<Project {self.id}: {self.name}>'
