@@ -705,13 +705,22 @@
 /* Dense Event Rows */
 .event-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     padding: 0.6rem 0.75rem;
     border-bottom: 1px solid #f0f0f0;
     background: white;
     transition: all 0.15s ease;
     gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.event-row > .event-row-main {
+    order: 1;
+}
+
+.event-row > .event-row-actions {
+    order: 2;
 }
 
 .event-row:hover {
@@ -724,6 +733,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+    padding-right: 0.5rem;
 }
 
 .event-row-title {
@@ -744,6 +754,8 @@
     align-items: center;
     gap: 0.5rem;
     flex-wrap: wrap;
+    max-width: 100%;
+    min-width: 0;
 }
 
 .event-row-date {
@@ -776,7 +788,8 @@
     display: flex;
     gap: 0.25rem;
     flex-shrink: 0;
-    align-items: center;
+    align-items: flex-start;
+    padding-top: 0.1rem;
 }
 
 .event-edit-btn,
@@ -833,6 +846,8 @@
     border-top: 1px solid #f0f0f0;
     font-size: 0.75rem;
     color: #666;
+    flex-basis: 100%;
+    order: 3;
 }
 
 .event-row-detail-item {
