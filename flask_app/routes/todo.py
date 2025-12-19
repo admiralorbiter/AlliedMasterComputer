@@ -36,11 +36,18 @@ def register_todo_routes(app):
             for todo in todos:
                 todo.subtasks_list = SubTask.find_by_todo(todo.id)
             
-            # Get all events for the current user
-            events = Event.find_by_user(current_user.id)
+            # Get events split by status
+            upcoming_events = Event.find_upcoming_by_user(current_user.id)
+            past_unprocessed_events = Event.find_past_unprocessed_by_user(current_user.id)
+            processed_events = Event.find_processed_by_user(current_user.id, limit=20)
             
             current_app.logger.info(f"Todo list accessed by {current_user.username}")
-            return render_template('todo/list.html', form=form, todos=todos, events=events)
+            return render_template('todo/list.html', 
+                                 form=form, 
+                                 todos=todos, 
+                                 upcoming_events=upcoming_events,
+                                 past_unprocessed_events=past_unprocessed_events,
+                                 processed_events=processed_events)
             
         except Exception as e:
             current_app.logger.error(f"Error in todo list: {str(e)}")
@@ -49,8 +56,15 @@ def register_todo_routes(app):
             # Load subtasks for each todo
             for todo in todos:
                 todo.subtasks_list = SubTask.find_by_todo(todo.id)
-            events = Event.find_by_user(current_user.id) if current_user.is_authenticated else []
-            return render_template('todo/list.html', form=form, todos=todos, events=events)
+            upcoming_events = Event.find_upcoming_by_user(current_user.id) if current_user.is_authenticated else []
+            past_unprocessed_events = Event.find_past_unprocessed_by_user(current_user.id) if current_user.is_authenticated else []
+            processed_events = Event.find_processed_by_user(current_user.id, limit=20) if current_user.is_authenticated else []
+            return render_template('todo/list.html', 
+                                 form=form, 
+                                 todos=todos, 
+                                 upcoming_events=upcoming_events,
+                                 past_unprocessed_events=past_unprocessed_events,
+                                 processed_events=processed_events)
     
     @app.route('/todos/<int:id>/toggle', methods=['POST'])
     @login_required
@@ -233,7 +247,8 @@ def register_todo_routes(app):
                 user_id=current_user.id,
                 description=description,
                 event_date=event_date,
-                notes=notes
+                notes=notes,
+                processed=False  # Explicitly set to ensure events are not auto-processed
             )
             
             if error:
@@ -294,14 +309,23 @@ def register_todo_routes(app):
                 return jsonify({'success': False, 'error': error}), 500
             
             current_app.logger.info(f"Event {id} updated by {current_user.username}")
+            
+            # Return full event data including processed state
+            event_data = {
+                'id': event.id,
+                'description': event.description,
+                'event_date': event.event_date.strftime('%Y-%m-%d'),
+                'notes': event.notes or '',
+                'processed': event.processed,
+                'outcome': event.outcome,
+                'outcome_reason': event.outcome_reason or '',
+                'outcome_notes': event.outcome_notes or '',
+                'processed_at': event.processed_at.strftime('%Y-%m-%d %H:%M') if event.processed_at else None
+            }
+            
             return jsonify({
                 'success': True,
-                'event': {
-                    'id': event.id,
-                    'description': event.description,
-                    'event_date': event.event_date.strftime('%Y-%m-%d'),
-                    'notes': event.notes or ''
-                }
+                'event': event_data
             })
             
         except Exception as e:
@@ -329,5 +353,94 @@ def register_todo_routes(app):
             
         except Exception as e:
             current_app.logger.error(f"Error deleting event {id}: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/events/<int:id>/process', methods=['POST'])
+    @login_required
+    def event_process(id):
+        """Process a past event (returns JSON for AJAX)"""
+        event = Event.find_by_id_and_user(id, current_user.id)
+        
+        if not event:
+            return jsonify({'success': False, 'error': 'Event not found'}), 404
+        
+        if event.processed:
+            return jsonify({'success': False, 'error': 'Event already processed'}), 400
+        
+        try:
+            data = request.get_json()
+            outcome = data.get('outcome', '').strip()
+            
+            if outcome not in ['did_not_happen', 'happened', 'happened_with_notes']:
+                return jsonify({'success': False, 'error': 'Invalid outcome'}), 400
+            
+            from datetime import datetime, timezone
+            
+            # Prepare update fields
+            update_fields = {
+                'processed': True,
+                'processed_at': datetime.now(timezone.utc),
+                'outcome': outcome
+            }
+            
+            # Add outcome-specific fields
+            if outcome == 'did_not_happen':
+                update_fields['outcome_reason'] = data.get('reason', '').strip() or None
+            elif outcome == 'happened_with_notes':
+                notes_html = data.get('notes', '').strip() or None
+                if notes_html:
+                    # Sanitize HTML notes
+                    from flask_app.utils.html_sanitizer import sanitize_html
+                    notes_html = sanitize_html(notes_html)
+                    if not notes_html or notes_html.strip() in ['<p><br></p>', '<p></p>']:
+                        notes_html = None
+                update_fields['outcome_notes'] = notes_html
+            
+            # Update event
+            success, error = event.safe_update(**update_fields)
+            
+            if error:
+                current_app.logger.error(f"Error processing event {id}: {error}")
+                return jsonify({'success': False, 'error': error}), 500
+            
+            # Handle follow-up todos if provided
+            follow_ups_created = 0
+            follow_ups_text = data.get('follow_ups', '').strip()
+            
+            if outcome == 'happened_with_notes' and follow_ups_text:
+                # Split by newlines and create todos
+                follow_up_lines = [line.strip() for line in follow_ups_text.split('\n') if line.strip()]
+                
+                for follow_up_desc in follow_up_lines:
+                    if follow_up_desc:
+                        new_todo, todo_error = Todo.safe_create(
+                            user_id=current_user.id,
+                            description=follow_up_desc,
+                            due_date=None
+                        )
+                        if not todo_error:
+                            follow_ups_created += 1
+                        else:
+                            current_app.logger.warning(f"Error creating follow-up todo: {todo_error}")
+            
+            current_app.logger.info(f"Event {id} processed by {current_user.username} with outcome {outcome}, {follow_ups_created} follow-ups created")
+            
+            return jsonify({
+                'success': True,
+                'event': {
+                    'id': event.id,
+                    'description': event.description,
+                    'event_date': event.event_date.strftime('%Y-%m-%d'),
+                    'processed': event.processed,
+                    'outcome': event.outcome,
+                    'outcome_reason': event.outcome_reason,
+                    'outcome_notes': event.outcome_notes,
+                    'processed_at': event.processed_at.strftime('%Y-%m-%d %H:%M:%S') if event.processed_at else None
+                },
+                'follow_ups_created': follow_ups_created
+            })
+            
+        except Exception as e:
+            current_app.logger.error(f"Error processing event {id}: {str(e)}")
             return jsonify({'success': False, 'error': str(e)}), 500
 

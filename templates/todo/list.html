@@ -8,13 +8,12 @@
 
 {% block content %}
 <div class="todo-container">
-    <div class="todo-header">
-        <h1><i class="fas fa-tasks"></i> To Do</h1>
-    </div>
-
-    <div class="todo-main-layout row g-4">
+    <div class="todo-main-layout">
         <!-- Main Content: Todos -->
-        <div class="todo-main-content col-lg-8 col-xl-9">
+        <div class="todo-main-content">
+            <div class="todo-header">
+                <h1><i class="fas fa-tasks"></i> To Do</h1>
+            </div>
             <!-- Add Todo Form -->
             <div class="todo-form-container">
         <form method="POST" action="{{ url_for('todo_list') }}" class="todo-form">
@@ -141,84 +140,338 @@
             </div>
         </div>
         
-        <!-- Sidebar: Upcoming Events -->
-        <div class="events-sidebar col-lg-4 col-xl-3">
-            <div class="events-header">
-                <h2><i class="fas fa-calendar-alt"></i> Upcoming Events</h2>
-            </div>
-            
-            <!-- Add Event Form -->
-            <div class="event-form-container">
-                <form class="event-form" id="eventForm">
-                    <input type="text" 
-                           class="form-control event-description-input" 
-                           placeholder="Event description" 
-                           id="eventDescription"
-                           required>
-                    <input type="date" 
-                           class="form-control event-date-input" 
-                           id="eventDate"
-                           required>
-                    <textarea class="form-control event-notes-input" 
-                              placeholder="Notes (optional)" 
-                              id="eventNotes"
-                              rows="2"></textarea>
-                    <button type="submit" class="event-add-btn">
-                        <i class="fas fa-plus"></i> Add
+        <!-- Sidebar: Events -->
+        <div class="events-sidebar">
+            <!-- Sticky Header Section -->
+            <div class="events-sidebar-header">
+                <div class="events-title">
+                    <h2>Events</h2>
+                </div>
+                
+                <!-- Tab Switcher -->
+                <div class="events-tabs">
+                    <button type="button" 
+                            class="events-tab-btn active" 
+                            data-tab="upcoming"
+                            id="tabUpcoming">
+                        Upcoming
                     </button>
-                </form>
+                    <button type="button" 
+                            class="events-tab-btn" 
+                            data-tab="history"
+                            id="tabHistory">
+                        History
+                    </button>
+                </div>
+                
+                <!-- Compact Add Event Form -->
+                <div class="event-add-compact">
+                    <form class="event-form-compact" id="eventForm">
+                        <input type="text" 
+                               class="form-control event-title-input" 
+                               placeholder="Event title" 
+                               id="eventDescription"
+                               required>
+                        <button type="button" 
+                                class="event-date-pill" 
+                                id="eventDatePill"
+                                title="Select date">
+                            <i class="fas fa-calendar"></i>
+                            <span id="eventDatePillText">Date</span>
+                        </button>
+                        <input type="date" 
+                               class="event-date-input-hidden" 
+                               id="eventDate"
+                               required>
+                        <button type="submit" class="event-add-icon-btn" title="Add event">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </form>
+                    <button type="button" 
+                            class="event-notes-link"
+                            id="eventNotesToggle">
+                        <i class="fas fa-pen"></i> Add notes
+                    </button>
+                    <div class="event-notes-expandable" id="eventNotesExpandable" style="display: none;">
+                        <textarea class="form-control event-notes-input" 
+                                  placeholder="Notes (optional)" 
+                                  id="eventNotes"
+                                  rows="2"></textarea>
+                    </div>
+                </div>
             </div>
             
-            <!-- Events List -->
-            <div class="events-list-container">
-                {% if events %}
-                    <div class="events-list">
-                        {% for event in events %}
-                        <div class="event-item" data-event-id="{{ event.id }}">
-                            <div class="event-content">
-                                <div class="event-description-display">
-                                    <strong>{{ event.description }}</strong>
+            <!-- Scrollable Content Area -->
+            <div class="events-scrollable">
+                <!-- Upcoming Events List -->
+                <div class="events-list-upcoming" id="eventsListUpcoming">
+                    {% if upcoming_events or past_unprocessed_events %}
+                        <div class="events-list">
+                            {% if upcoming_events %}
+                                {% for event in upcoming_events %}
+                                <div class="event-row event-row-upcoming" data-event-id="{{ event.id }}">
+                                    <div class="event-row-main">
+                                        <div class="event-row-title">{{ event.description }}</div>
+                                        <div class="event-row-meta">
+                                            <span class="event-row-date">
+                                                <i class="fas fa-calendar"></i> {{ event.event_date.strftime('%Y-%m-%d') }}
+                                            </span>
+                                            {% if event.notes %}
+                                            <span class="event-row-has-notes" title="Has notes">
+                                                <i class="fas fa-sticky-note"></i>
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="event-row-actions">
+                                        <button type="button" 
+                                                class="btn btn-sm btn-link event-edit-btn" 
+                                                data-event-id="{{ event.id }}"
+                                                title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-link text-danger event-delete-btn" 
+                                                data-event-id="{{ event.id }}"
+                                                title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                    {% if event.notes %}
+                                    <div class="event-row-details" style="display: none;">
+                                        <div class="event-row-notes">{{ event.notes }}</div>
+                                    </div>
+                                    {% endif %}
                                 </div>
-                                <div class="event-date-display">
-                                    <i class="fas fa-calendar"></i> {{ event.event_date.strftime('%Y-%m-%d') }}
+                                {% endfor %}
+                            {% endif %}
+                            
+                            {% if past_unprocessed_events %}
+                                {% for event in past_unprocessed_events %}
+                                <div class="event-row event-row-past-unprocessed" 
+                                     data-event-id="{{ event.id }}"
+                                     data-event-description="{{ event.description }}"
+                                     data-event-date="{{ event.event_date.strftime('%Y-%m-%d') }}"
+                                     style="cursor: pointer;">
+                                    <div class="event-row-main">
+                                        <div class="event-row-title">{{ event.description }}</div>
+                                        <div class="event-row-meta">
+                                            <span class="event-row-date">
+                                                <i class="fas fa-calendar"></i> {{ event.event_date.strftime('%Y-%m-%d') }}
+                                            </span>
+                                            <span class="event-row-badge badge bg-warning text-dark">Needs Processing</span>
+                                        </div>
+                                    </div>
+                                    <div class="event-row-actions">
+                                        <button type="button" 
+                                                class="btn btn-sm btn-link event-edit-btn" 
+                                                data-event-id="{{ event.id }}"
+                                                title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-link text-danger event-delete-btn" 
+                                                data-event-id="{{ event.id }}"
+                                                title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
                                 </div>
-                                {% if event.notes %}
-                                <div class="event-notes-display">
-                                    {{ event.notes }}
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <div class="events-empty-state">
+                            <p class="text-muted">No upcoming events.</p>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- History List (Dense Expandable Rows) -->
+                <div class="events-list-history" id="eventsListHistory" style="display: none;">
+                    {% if processed_events %}
+                        <div class="events-list">
+                            {% for event in processed_events %}
+                            <div class="event-row event-row-history" 
+                                 data-event-id="{{ event.id }}"
+                                 data-expanded="false">
+                                <div class="event-row-main" style="cursor: pointer;">
+                                    <div class="event-row-title">{{ event.description }}</div>
+                                    <div class="event-row-meta">
+                                        <span class="event-row-date">
+                                            <i class="fas fa-calendar"></i> {{ event.event_date.strftime('%Y-%m-%d') }}
+                                        </span>
+                                        {% if event.outcome == 'did_not_happen' %}
+                                            <span class="event-row-badge badge bg-warning text-dark">Didn't Happen</span>
+                                        {% elif event.outcome == 'happened' %}
+                                            <span class="event-row-badge badge bg-success">Happened</span>
+                                        {% elif event.outcome == 'happened_with_notes' %}
+                                            <span class="event-row-badge badge bg-info">Happened</span>
+                                            <span class="event-row-has-notes" title="Has notes">
+                                                <i class="fas fa-sticky-note"></i>
+                                            </span>
+                                        {% endif %}
+                                    </div>
                                 </div>
-                                {% endif %}
+                                <div class="event-row-actions">
+                                    <button type="button" 
+                                            class="btn btn-sm btn-link event-edit-btn" 
+                                            data-event-id="{{ event.id }}"
+                                            title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-link text-danger event-delete-btn" 
+                                            data-event-id="{{ event.id }}"
+                                            title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-link event-expand-btn" 
+                                            title="Expand">
+                                        <i class="fas fa-chevron-down"></i>
+                                    </button>
+                                </div>
+                                <div class="event-row-details" style="display: none;">
+                                    {% if event.outcome_reason %}
+                                    <div class="event-row-detail-item">
+                                        <strong>Reason:</strong> {{ event.outcome_reason }}
+                                    </div>
+                                    {% endif %}
+                                    {% if event.outcome_notes %}
+                                    <div class="event-row-detail-item">
+                                        <strong>Notes:</strong>
+                                        <div class="event-notes-content">{{ event.outcome_notes|safe }}</div>
+                                    </div>
+                                    {% endif %}
+                                    {% if event.processed_at %}
+                                    <div class="event-row-detail-item">
+                                        <small class="text-muted">Processed: {{ event.processed_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                    </div>
+                                    {% endif %}
+                                </div>
                             </div>
-                            <div class="event-actions">
-                                <button type="button" 
-                                        class="btn btn-sm btn-link event-edit-btn" 
-                                        data-event-id="{{ event.id }}"
-                                        title="Edit event">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button type="button" 
-                                        class="btn btn-sm btn-link text-danger event-delete-btn" 
-                                        data-event-id="{{ event.id }}"
-                                        title="Delete event">
-                                    <i class="fas fa-trash"></i>
-                                </button>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="events-empty-state">
+                            <p class="text-muted">No processed events.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Process Event Modal -->
+        <div class="modal fade" id="processEventModal" tabindex="-1" aria-labelledby="processEventModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+                <div class="modal-content process-modal-content">
+                    <div class="modal-header process-modal-header">
+                        <div class="process-modal-title-section">
+                            <h5 class="modal-title mb-0" id="processEventModalLabel">
+                                <i class="fas fa-tasks me-2"></i>Process Event
+                            </h5>
+                            <div class="process-event-info">
+                                <strong id="processEventDescription" class="process-event-name"></strong>
+                                <span class="process-event-date" id="processEventDate"></span>
                             </div>
                         </div>
-                        {% endfor %}
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                {% else %}
-                    <div class="events-empty-state">
-                        <p class="text-muted">No upcoming events. Add one above!</p>
+                    <div class="modal-body process-modal-body">
+                        <form id="processEventForm">
+                            <input type="hidden" id="processEventId" value="">
+                            <div class="process-outcome-group">
+                                <label class="process-form-label">Select Outcome:</label>
+                                <div class="process-radio-group">
+                                    <div class="process-radio-option">
+                                        <input class="form-check-input" type="radio" name="outcome" id="outcomeDidNotHappen" value="did_not_happen">
+                                        <label class="form-check-label" for="outcomeDidNotHappen">
+                                            <i class="fas fa-times-circle me-1"></i>Didn't happen
+                                        </label>
+                                    </div>
+                                    <div class="process-radio-option">
+                                        <input class="form-check-input" type="radio" name="outcome" id="outcomeHappened" value="happened">
+                                        <label class="form-check-label" for="outcomeHappened">
+                                            <i class="fas fa-check-circle me-1"></i>Happened
+                                        </label>
+                                    </div>
+                                    <div class="process-radio-option">
+                                        <input class="form-check-input" type="radio" name="outcome" id="outcomeHappenedWithNotes" value="happened_with_notes">
+                                        <label class="form-check-label" for="outcomeHappenedWithNotes">
+                                            <i class="fas fa-sticky-note me-1"></i>Happened with notes
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Reason field (shown only for "didn't happen") -->
+                            <div class="process-field-group" id="reasonField" style="display: none;">
+                                <label for="processEventReason" class="process-form-label">Reason <span class="text-muted">(optional)</span></label>
+                                <textarea class="form-control process-textarea" id="processEventReason" rows="2" placeholder="Why didn't it happen?"></textarea>
+                            </div>
+                            
+                            <!-- Notes and follow-ups fields (shown only for "happened with notes") -->
+                            <div id="notesAndFollowupsFields" style="display: none;">
+                                <div class="row g-3">
+                                    <div class="col-md-8">
+                                        <div class="process-field-group">
+                                            <label for="processEventNotes" class="process-form-label">Notes</label>
+                                            <div id="processEventNotesEditor" class="quill-editor-container-compact"></div>
+                                            <input type="hidden" id="processEventNotes" value="">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="process-field-group">
+                                            <label for="processEventFollowups" class="process-form-label">
+                                                Follow-ups <span class="text-muted small">(one per line)</span>
+                                            </label>
+                                            <textarea class="form-control process-textarea" id="processEventFollowups" rows="8" placeholder="One per line..."></textarea>
+                                            <small class="process-help-text">Each line becomes a new todo</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
                     </div>
-                {% endif %}
+                    <div class="modal-footer process-modal-footer">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-sm btn-primary process-submit-btn" id="processEventSubmitBtn">
+                            <span class="btn-text">Process</span>
+                            <span class="btn-spinner" style="display: none;">
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>Processing...
+                            </span>
+                        </button>
+                    </div>
+                </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification Container -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+    <div id="toastNotification" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <i class="fas fa-check-circle text-success me-2" id="toastIcon"></i>
+            <strong class="me-auto" id="toastTitle">Success</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body" id="toastMessage">
+            Event processed successfully!
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/quill-config.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Define these at the top level of DOMContentLoaded so they're accessible everywhere
+    const listUpcoming = document.getElementById('eventsListUpcoming');
+    const listHistory = document.getElementById('eventsListHistory');
+    
     // Get CSRF token from meta tag or form
     function getCSRFToken() {
         const metaTag = document.querySelector('meta[name="csrf-token"]');
@@ -642,6 +895,109 @@ document.addEventListener('DOMContentLoaded', function() {
         return div.innerHTML;
     }
     
+    // Tab switching functionality
+    const tabUpcoming = document.getElementById('tabUpcoming');
+    const tabHistory = document.getElementById('tabHistory');
+    
+    if (tabUpcoming && tabHistory && listUpcoming && listHistory) {
+        function switchTab(activeTab) {
+            if (activeTab === 'upcoming') {
+                tabUpcoming.classList.add('active');
+                tabHistory.classList.remove('active');
+                listUpcoming.style.display = 'block';
+                listHistory.style.display = 'none';
+            } else {
+                tabHistory.classList.add('active');
+                tabUpcoming.classList.remove('active');
+                listHistory.style.display = 'block';
+                listUpcoming.style.display = 'none';
+            }
+        }
+        
+        tabUpcoming.addEventListener('click', function() {
+            switchTab('upcoming');
+        });
+        
+        tabHistory.addEventListener('click', function() {
+            switchTab('history');
+        });
+    }
+    
+    // Date pill functionality
+    const datePill = document.getElementById('eventDatePill');
+    const datePillText = document.getElementById('eventDatePillText');
+    const dateInput = document.getElementById('eventDate');
+    
+    if (datePill && dateInput && datePillText) {
+        // Update pill text when date changes
+        dateInput.addEventListener('change', function() {
+            if (this.value) {
+                const date = new Date(this.value);
+                const today = new Date();
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                
+                if (this.value === today.toISOString().split('T')[0]) {
+                    datePillText.textContent = 'Today';
+                } else if (this.value === tomorrow.toISOString().split('T')[0]) {
+                    datePillText.textContent = 'Tomorrow';
+                } else {
+                    datePillText.textContent = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                }
+            } else {
+                datePillText.textContent = 'Date';
+            }
+        });
+        
+        // Click pill to trigger date input
+        datePill.addEventListener('click', function() {
+            dateInput.showPicker ? dateInput.showPicker() : dateInput.click();
+        });
+    }
+    
+    // Expandable notes in add form
+    const notesToggle = document.getElementById('eventNotesToggle');
+    const notesExpandable = document.getElementById('eventNotesExpandable');
+    
+    if (notesToggle && notesExpandable) {
+        notesToggle.addEventListener('click', function() {
+            const isVisible = notesExpandable.style.display !== 'none';
+            notesExpandable.style.display = isVisible ? 'none' : 'block';
+            if (!isVisible) {
+                notesExpandable.querySelector('textarea').focus();
+            }
+        });
+    }
+    
+    // History row expand/collapse
+    document.querySelectorAll('.event-row-history').forEach(function(row) {
+        const expandBtn = row.querySelector('.event-expand-btn');
+        const details = row.querySelector('.event-row-details');
+        const main = row.querySelector('.event-row-main');
+        
+        if (expandBtn && details) {
+            const toggleExpand = function(e) {
+                // Don't expand if clicking on action buttons
+                if (e.target.closest('.event-row-actions')) {
+                    return;
+                }
+                
+                const isExpanded = row.dataset.expanded === 'true';
+                row.dataset.expanded = !isExpanded;
+                details.style.display = isExpanded ? 'none' : 'block';
+                const icon = expandBtn.querySelector('i');
+                if (icon) {
+                    icon.className = isExpanded ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
+                }
+            };
+            
+            if (main) {
+                main.addEventListener('click', toggleExpand);
+            }
+            expandBtn.addEventListener('click', toggleExpand);
+        }
+    });
+    
     // Handle event form submission
     const eventForm = document.getElementById('eventForm');
     if (eventForm) {
@@ -650,7 +1006,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const description = document.getElementById('eventDescription').value.trim();
             const eventDate = document.getElementById('eventDate').value;
-            const notes = document.getElementById('eventNotes').value.trim();
+            const notesEl = document.getElementById('eventNotes');
+            const notes = notesEl ? notesEl.value.trim() : '';
             
             if (!description || !eventDate) {
                 alert('Please fill in description and date');
@@ -658,8 +1015,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Disable form
-            const submitBtn = eventForm.querySelector('.event-add-btn');
-            submitBtn.disabled = true;
+            const submitBtn = eventForm.querySelector('.event-add-icon-btn');
+            if (submitBtn) submitBtn.disabled = true;
             
             // Send AJAX request
             const headers = {
@@ -681,69 +1038,68 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => response.json())
             .then(data => {
-                submitBtn.disabled = false;
+                if (submitBtn) submitBtn.disabled = false;
                 if (data.success && data.event) {
                     // Reset form
                     eventForm.reset();
+                    if (datePillText) datePillText.textContent = 'Date';
+                    if (notesExpandable) notesExpandable.style.display = 'none';
                     
-                    // Add event to DOM
-                    const eventsList = document.querySelector('.events-list');
-                    const emptyState = document.querySelector('.events-empty-state');
+                    // Add event to DOM in upcoming list
+                    const eventsList = listUpcoming ? listUpcoming.querySelector('.events-list') : null;
+                    const emptyState = listUpcoming ? listUpcoming.querySelector('.events-empty-state') : null;
                     
                     if (emptyState) {
                         emptyState.remove();
                     }
                     
-                    if (!eventsList) {
-                        const container = document.querySelector('.events-list-container');
+                    if (!eventsList && listUpcoming) {
                         const newList = document.createElement('div');
                         newList.className = 'events-list';
-                        container.appendChild(newList);
+                        listUpcoming.appendChild(newList);
                     }
                     
-                    const eventsListContainer = document.querySelector('.events-list') || document.createElement('div');
-                    if (!eventsListContainer.classList.contains('events-list')) {
-                        eventsListContainer.className = 'events-list';
-                        document.querySelector('.events-list-container').appendChild(eventsListContainer);
+                    const targetList = listUpcoming ? listUpcoming.querySelector('.events-list') : null;
+                    if (targetList) {
+                        const eventHtml = `
+                            <div class="event-row event-row-upcoming" data-event-id="${data.event.id}">
+                                <div class="event-row-main">
+                                    <div class="event-row-title">${escapeHtml(data.event.description)}</div>
+                                    <div class="event-row-meta">
+                                        <span class="event-row-date">
+                                            <i class="fas fa-calendar"></i> ${data.event.event_date}
+                                        </span>
+                                        ${data.event.notes ? '<span class="event-row-has-notes" title="Has notes"><i class="fas fa-sticky-note"></i></span>' : ''}
+                                    </div>
+                                </div>
+                                <div class="event-row-actions">
+                                    <button type="button" 
+                                            class="btn btn-sm btn-link event-edit-btn" 
+                                            data-event-id="${data.event.id}"
+                                            title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-link text-danger event-delete-btn" 
+                                            data-event-id="${data.event.id}"
+                                            title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                                ${data.event.notes ? `<div class="event-row-details" style="display: none;"><div class="event-row-notes">${escapeHtml(data.event.notes)}</div></div>` : ''}
+                            </div>
+                        `;
+                        targetList.insertAdjacentHTML('beforeend', eventHtml);
+                        
+                        // Re-attach event listeners
+                        attachEventListeners();
                     }
-                    
-                    const eventHtml = `
-                        <div class="event-item" data-event-id="${data.event.id}">
-                            <div class="event-content">
-                                <div class="event-description-display">
-                                    <strong>${escapeHtml(data.event.description)}</strong>
-                                </div>
-                                <div class="event-date-display">
-                                    <i class="fas fa-calendar"></i> ${data.event.event_date}
-                                </div>
-                                ${data.event.notes ? `<div class="event-notes-display">${escapeHtml(data.event.notes)}</div>` : ''}
-                            </div>
-                            <div class="event-actions">
-                                <button type="button" 
-                                        class="btn btn-sm btn-link event-edit-btn" 
-                                        data-event-id="${data.event.id}"
-                                        title="Edit event">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button type="button" 
-                                        class="btn btn-sm btn-link text-danger event-delete-btn" 
-                                        data-event-id="${data.event.id}"
-                                        title="Delete event">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                    eventsListContainer.insertAdjacentHTML('beforeend', eventHtml);
-                    
-                    // Re-attach event listeners
-                    attachEventListeners();
                 } else {
                     alert('Error creating event: ' + (data.error || 'Unknown error'));
                 }
             })
             .catch(error => {
-                submitBtn.disabled = false;
+                if (submitBtn) submitBtn.disabled = false;
                 console.error('Error:', error);
                 alert('Error creating event. Please try again.');
             });
@@ -757,16 +1113,17 @@ document.addEventListener('DOMContentLoaded', function() {
             if (button.dataset.listenerAttached) return;
             button.dataset.listenerAttached = 'true';
             
-            button.addEventListener('click', function() {
+            button.addEventListener('click', function(e) {
+                e.stopPropagation(); // Prevent row expand/collapse
                 const eventId = this.dataset.eventId;
-                const eventItem = this.closest('.event-item');
+                const eventRow = this.closest('.event-row');
                 
                 if (!confirm('Are you sure you want to delete this event?')) {
                     return;
                 }
                 
-                eventItem.style.opacity = '0.5';
-                eventItem.style.pointerEvents = 'none';
+                eventRow.style.opacity = '0.5';
+                eventRow.style.pointerEvents = 'none';
                 
                 const headers = {
                     'Content-Type': 'application/json',
@@ -784,28 +1141,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        eventItem.style.transition = 'opacity 0.3s ease-out';
-                        eventItem.style.opacity = '0';
+                        eventRow.style.transition = 'opacity 0.3s ease-out';
+                        eventRow.style.opacity = '0';
                         setTimeout(function() {
-                            eventItem.remove();
-                            const eventsList = document.querySelector('.events-list');
+                            eventRow.remove();
+                            const eventsList = eventRow.closest('.events-list');
                             if (eventsList && eventsList.children.length === 0) {
-                                const container = document.querySelector('.events-list-container');
-                                const emptyState = document.createElement('div');
-                                emptyState.className = 'events-empty-state';
-                                emptyState.innerHTML = '<p class="text-muted">No upcoming events. Add one above!</p>';
-                                container.appendChild(emptyState);
+                                const container = eventRow.closest('.events-list-upcoming, .events-list-history');
+                                if (container) {
+                                    const emptyState = document.createElement('div');
+                                    emptyState.className = 'events-empty-state';
+                                    emptyState.innerHTML = '<p class="text-muted">No events.</p>';
+                                    container.appendChild(emptyState);
+                                }
                             }
                         }, 300);
                     } else {
-                        eventItem.style.opacity = '1';
-                        eventItem.style.pointerEvents = 'auto';
+                        eventRow.style.opacity = '1';
+                        eventRow.style.pointerEvents = 'auto';
                         alert('Error deleting event: ' + (data.error || 'Unknown error'));
                     }
                 })
                 .catch(error => {
-                    eventItem.style.opacity = '1';
-                    eventItem.style.pointerEvents = 'auto';
+                    eventRow.style.opacity = '1';
+                    eventRow.style.pointerEvents = 'auto';
                     console.error('Error:', error);
                     alert('Error deleting event. Please try again.');
                 });
@@ -817,15 +1176,29 @@ document.addEventListener('DOMContentLoaded', function() {
             if (button.dataset.listenerAttached) return;
             button.dataset.listenerAttached = 'true';
             
-            button.addEventListener('click', function() {
+            button.addEventListener('click', function(e) {
+                e.stopPropagation(); // Prevent row expand/collapse
                 const eventId = this.dataset.eventId;
-                const eventItem = this.closest('.event-item');
-                const descriptionEl = eventItem.querySelector('.event-description-display strong');
-                const dateEl = eventItem.querySelector('.event-date-display');
-                const notesEl = eventItem.querySelector('.event-notes-display');
+                const eventRow = this.closest('.event-row');
+                const titleEl = eventRow.querySelector('.event-row-title');
+                const dateEl = eventRow.querySelector('.event-row-date');
                 
-                const currentDescription = descriptionEl.textContent.trim();
-                const currentDate = dateEl.textContent.match(/\d{4}-\d{2}-\d{2}/)?.[0] || '';
+                // Get notes - check both regular notes and outcome notes
+                let notesEl = eventRow.querySelector('.event-row-notes');
+                if (!notesEl) {
+                    // For processed events, try to get outcome notes
+                    const outcomeNotesEl = eventRow.querySelector('.event-notes-content');
+                    if (outcomeNotesEl) {
+                        // Create a temporary element to extract text from HTML
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = outcomeNotesEl.innerHTML;
+                        notesEl = { textContent: tempDiv.textContent || tempDiv.innerText || '' };
+                    }
+                }
+                
+                const currentDescription = titleEl ? titleEl.textContent.trim() : '';
+                const dateMatch = dateEl ? dateEl.textContent.match(/\d{4}-\d{2}-\d{2}/) : null;
+                const currentDate = dateMatch ? dateMatch[0] : '';
                 const currentNotes = notesEl ? notesEl.textContent.trim() : '';
                 
                 // Create edit form
@@ -848,18 +1221,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 `;
                 
-                const originalContent = eventItem.querySelector('.event-content').innerHTML;
-                const originalActions = eventItem.querySelector('.event-actions').innerHTML;
+                const originalMain = eventRow.querySelector('.event-row-main').innerHTML;
+                const originalActions = eventRow.querySelector('.event-row-actions').innerHTML;
+                const originalDetails = eventRow.querySelector('.event-row-details') ? eventRow.querySelector('.event-row-details').innerHTML : '';
                 
-                eventItem.querySelector('.event-content').innerHTML = '';
-                eventItem.querySelector('.event-content').appendChild(editForm);
-                eventItem.querySelector('.event-actions').style.display = 'none';
+                eventRow.querySelector('.event-row-main').innerHTML = '';
+                eventRow.querySelector('.event-row-main').appendChild(editForm);
+                eventRow.querySelector('.event-row-actions').style.display = 'none';
+                if (eventRow.querySelector('.event-row-details')) {
+                    eventRow.querySelector('.event-row-details').style.display = 'none';
+                }
                 
                 // Handle cancel
                 editForm.querySelector('.event-cancel-edit').addEventListener('click', function() {
-                    eventItem.querySelector('.event-content').innerHTML = originalContent;
-                    eventItem.querySelector('.event-actions').innerHTML = originalActions;
-                    eventItem.querySelector('.event-actions').style.display = '';
+                    eventRow.querySelector('.event-row-main').innerHTML = originalMain;
+                    eventRow.querySelector('.event-row-actions').innerHTML = originalActions;
+                    eventRow.querySelector('.event-row-actions').style.display = '';
+                    if (originalDetails && eventRow.querySelector('.event-row-details')) {
+                        eventRow.querySelector('.event-row-details').innerHTML = originalDetails;
+                    }
                     attachEventListeners();
                 });
                 
@@ -896,17 +1276,58 @@ document.addEventListener('DOMContentLoaded', function() {
                     .then(response => response.json())
                     .then(data => {
                         if (data.success && data.event) {
+                            // Check if this is a processed event
+                            const isProcessed = eventRow.classList.contains('event-row-history');
+                            
+                            // Build event row content
+                            let titleHtml = escapeHtml(data.event.description);
+                            let metaHtml = `<span class="event-row-date"><i class="fas fa-calendar"></i> ${data.event.event_date}</span>`;
+                            
+                            // Add badge if processed
+                            if (isProcessed && data.event.outcome) {
+                                if (data.event.outcome === 'did_not_happen') {
+                                    metaHtml += `<span class="event-row-badge badge bg-warning text-dark">Didn't Happen</span>`;
+                                } else if (data.event.outcome === 'happened') {
+                                    metaHtml += `<span class="event-row-badge badge bg-success">Happened</span>`;
+                                } else if (data.event.outcome === 'happened_with_notes') {
+                                    metaHtml += `<span class="event-row-badge badge bg-info">Happened</span>`;
+                                    metaHtml += `<span class="event-row-has-notes" title="Has notes"><i class="fas fa-sticky-note"></i></span>`;
+                                }
+                            } else if (data.event.notes) {
+                                metaHtml += `<span class="event-row-has-notes" title="Has notes"><i class="fas fa-sticky-note"></i></span>`;
+                            }
+                            
+                            // Build details section for processed events
+                            let detailsHtml = '';
+                            if (isProcessed) {
+                                detailsHtml = '<div class="event-row-details" style="display: none;">';
+                                if (data.event.outcome_reason) {
+                                    detailsHtml += `<div class="event-row-detail-item"><strong>Reason:</strong> ${escapeHtml(data.event.outcome_reason)}</div>`;
+                                }
+                                if (data.event.outcome_notes) {
+                                    detailsHtml += `<div class="event-row-detail-item"><strong>Notes:</strong><div class="event-notes-content">${data.event.outcome_notes}</div></div>`;
+                                }
+                                if (data.event.processed_at) {
+                                    detailsHtml += `<div class="event-row-detail-item"><small class="text-muted">Processed: ${data.event.processed_at}</small></div>`;
+                                }
+                                detailsHtml += '</div>';
+                            } else if (data.event.notes) {
+                                detailsHtml = `<div class="event-row-details" style="display: none;"><div class="event-row-notes">${escapeHtml(data.event.notes)}</div></div>`;
+                            }
+                            
                             // Update DOM
-                            eventItem.querySelector('.event-content').innerHTML = `
-                                <div class="event-description-display">
-                                    <strong>${escapeHtml(data.event.description)}</strong>
-                                </div>
-                                <div class="event-date-display">
-                                    <i class="fas fa-calendar"></i> ${data.event.event_date}
-                                </div>
-                                ${data.event.notes ? `<div class="event-notes-display">${escapeHtml(data.event.notes)}</div>` : ''}
+                            eventRow.querySelector('.event-row-main').innerHTML = `
+                                <div class="event-row-title">${titleHtml}</div>
+                                <div class="event-row-meta">${metaHtml}</div>
                             `;
-                            eventItem.querySelector('.event-actions').style.display = '';
+                            if (detailsHtml) {
+                                if (eventRow.querySelector('.event-row-details')) {
+                                    eventRow.querySelector('.event-row-details').outerHTML = detailsHtml;
+                                } else {
+                                    eventRow.insertAdjacentHTML('beforeend', detailsHtml);
+                                }
+                            }
+                            eventRow.querySelector('.event-row-actions').style.display = '';
                             attachEventListeners();
                         } else {
                             alert('Error updating event: ' + (data.error || 'Unknown error'));
@@ -923,6 +1344,335 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initial attachment
     attachEventListeners();
+    
+    // Quill editor instance for notes
+    let notesQuill = null;
+    
+    // Initialize Quill editor when modal is shown
+    const processModal = document.getElementById('processEventModal');
+    if (processModal) {
+        processModal.addEventListener('shown.bs.modal', function() {
+            // Initialize Quill editor for notes if it doesn't exist
+            const notesEditorContainer = document.getElementById('processEventNotesEditor');
+            const notesHiddenInput = document.getElementById('processEventNotes');
+            
+            if (notesEditorContainer && notesHiddenInput && !notesQuill) {
+                notesQuill = window.initQuillEditor('processEventNotesEditor', 'processEventNotes', '');
+            }
+        });
+        
+        processModal.addEventListener('hidden.bs.modal', function() {
+            // Clean up Quill editor when modal is closed
+            if (notesQuill) {
+                const notesEditorContainer = document.getElementById('processEventNotesEditor');
+                if (notesEditorContainer) {
+                    notesEditorContainer.innerHTML = '';
+                }
+                notesQuill = null;
+            }
+        });
+    }
+    
+    // Toast notification helper function
+    function showToast(title, message, type = 'success') {
+        const toast = document.getElementById('toastNotification');
+        const toastTitle = document.getElementById('toastTitle');
+        const toastMessage = document.getElementById('toastMessage');
+        const toastIcon = document.getElementById('toastIcon');
+        
+        toastTitle.textContent = title;
+        toastMessage.textContent = message;
+        
+        // Update icon and color based on type
+        toastIcon.className = 'fas me-2';
+        if (type === 'success') {
+            toastIcon.classList.add('fa-check-circle', 'text-success');
+        } else if (type === 'error') {
+            toastIcon.classList.add('fa-exclamation-circle', 'text-danger');
+        } else if (type === 'info') {
+            toastIcon.classList.add('fa-info-circle', 'text-info');
+        }
+        
+        const bsToast = new bootstrap.Toast(toast, {
+            autohide: true,
+            delay: type === 'error' ? 5000 : 3000
+        });
+        bsToast.show();
+    }
+    
+    // Handle past unprocessed event clicks to open processing modal
+    document.querySelectorAll('.event-row-past-unprocessed').forEach(function(eventRow) {
+        const main = eventRow.querySelector('.event-row-main');
+        if (main) {
+            main.addEventListener('click', function(e) {
+                // Don't trigger if clicking on action buttons
+                if (e.target.closest('.event-row-actions')) {
+                    return;
+                }
+                
+                const eventId = eventRow.dataset.eventId;
+                const eventDescription = eventRow.dataset.eventDescription;
+                const eventDate = eventRow.dataset.eventDate;
+            
+            // Populate modal
+            document.getElementById('processEventId').value = eventId;
+            document.getElementById('processEventDescription').textContent = eventDescription;
+            document.getElementById('processEventDate').textContent = eventDate;
+            
+            // Reset form
+            document.getElementById('processEventForm').reset();
+            document.getElementById('processEventId').value = eventId;
+            document.getElementById('reasonField').style.display = 'none';
+            document.getElementById('notesAndFollowupsFields').style.display = 'none';
+            
+            // Reset Quill editor if it exists
+            if (notesQuill) {
+                notesQuill.setText('');
+            }
+            
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('processEventModal'));
+                modal.show();
+            });
+        }
+    });
+    
+    // Handle outcome radio button changes to show/hide fields
+    document.querySelectorAll('input[name="outcome"]').forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            const reasonField = document.getElementById('reasonField');
+            const notesAndFollowupsFields = document.getElementById('notesAndFollowupsFields');
+            
+            if (this.value === 'did_not_happen') {
+                reasonField.style.display = 'block';
+                notesAndFollowupsFields.style.display = 'none';
+            } else if (this.value === 'happened_with_notes') {
+                reasonField.style.display = 'none';
+                notesAndFollowupsFields.style.display = 'block';
+            } else {
+                reasonField.style.display = 'none';
+                notesAndFollowupsFields.style.display = 'none';
+            }
+        });
+    });
+    
+    // Handle process event form submission
+    document.getElementById('processEventSubmitBtn').addEventListener('click', function() {
+        const eventId = document.getElementById('processEventId').value;
+        const outcome = document.querySelector('input[name="outcome"]:checked');
+        
+        if (!outcome) {
+            showToast('Required', 'Please select an outcome', 'error');
+            return;
+        }
+        
+        const outcomeValue = outcome.value;
+        const reason = document.getElementById('processEventReason').value.trim();
+        
+        // Get notes from Quill editor or hidden input
+        let notes = '';
+        if (notesQuill) {
+            const html = notesQuill.root.innerHTML;
+            if (html && html !== '<p><br></p>' && html !== '<p></p>') {
+                notes = html;
+            }
+        } else {
+            notes = document.getElementById('processEventNotes').value.trim();
+        }
+        
+        const followUps = document.getElementById('processEventFollowups').value.trim();
+        
+        // Disable button and show spinner
+        const btnText = this.querySelector('.btn-text');
+        const btnSpinner = this.querySelector('.btn-spinner');
+        this.disabled = true;
+        if (btnText) btnText.style.display = 'none';
+        if (btnSpinner) btnSpinner.style.display = 'inline';
+        
+        // Prepare request data
+        const requestData = {
+            outcome: outcomeValue
+        };
+        
+        if (outcomeValue === 'did_not_happen' && reason) {
+            requestData.reason = reason;
+        } else if (outcomeValue === 'happened_with_notes') {
+            if (notes) {
+                requestData.notes = notes;
+            }
+            if (followUps) {
+                requestData.follow_ups = followUps;
+            }
+        }
+        
+        // Send AJAX request
+        const headers = {
+            'Content-Type': 'application/json',
+        };
+        const csrfToken = getCSRFToken();
+        if (csrfToken) {
+            headers['X-CSRFToken'] = csrfToken;
+        }
+        
+        fetch(`/events/${eventId}/process`, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(requestData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Re-enable button
+            this.disabled = false;
+            const btnText = this.querySelector('.btn-text');
+            const btnSpinner = this.querySelector('.btn-spinner');
+            if (btnText) btnText.style.display = 'inline';
+            if (btnSpinner) btnSpinner.style.display = 'none';
+            
+            if (data.success) {
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('processEventModal'));
+                modal.hide();
+                
+                // Remove from past unprocessed list (in upcoming tab)
+                const eventRow = document.querySelector(`.event-row-past-unprocessed[data-event-id="${eventId}"]`);
+                if (eventRow) {
+                    eventRow.remove();
+                    const eventsList = listUpcoming ? listUpcoming.querySelector('.events-list') : null;
+                    if (eventsList && eventsList.children.length === 0) {
+                        const emptyState = document.createElement('div');
+                        emptyState.className = 'events-empty-state';
+                        emptyState.innerHTML = '<p class="text-muted">No upcoming events.</p>';
+                        listUpcoming.appendChild(emptyState);
+                    }
+                }
+                
+                // Add to processed events list (in history tab)
+                const historyList = listHistory ? listHistory.querySelector('.events-list') : null;
+                if (historyList) {
+                    const outcomeBadge = data.event.outcome === 'did_not_happen' 
+                        ? '<span class="event-row-badge badge bg-warning text-dark">Didn\'t Happen</span>'
+                        : data.event.outcome === 'happened'
+                        ? '<span class="event-row-badge badge bg-success">Happened</span>'
+                        : '<span class="event-row-badge badge bg-info">Happened</span>';
+                    
+                    const hasNotes = data.event.outcome === 'happened_with_notes' && data.event.outcome_notes;
+                    const notesIcon = hasNotes ? '<span class="event-row-has-notes" title="Has notes"><i class="fas fa-sticky-note"></i></span>' : '';
+                    
+                    let detailsHtml = '<div class="event-row-details" style="display: none;">';
+                    if (data.event.outcome_reason) {
+                        detailsHtml += `<div class="event-row-detail-item"><strong>Reason:</strong> ${escapeHtml(data.event.outcome_reason)}</div>`;
+                    }
+                    if (data.event.outcome_notes) {
+                        detailsHtml += `<div class="event-row-detail-item"><strong>Notes:</strong><div class="event-notes-content">${data.event.outcome_notes}</div></div>`;
+                    }
+                    if (data.event.processed_at) {
+                        detailsHtml += `<div class="event-row-detail-item"><small class="text-muted">Processed: ${data.event.processed_at}</small></div>`;
+                    }
+                    detailsHtml += '</div>';
+                    
+                    const eventHtml = `
+                        <div class="event-row event-row-history" data-event-id="${data.event.id}" data-expanded="false">
+                            <div class="event-row-main" style="cursor: pointer;">
+                                <div class="event-row-title">${escapeHtml(data.event.description)}</div>
+                                <div class="event-row-meta">
+                                    <span class="event-row-date">
+                                        <i class="fas fa-calendar"></i> ${data.event.event_date}
+                                    </span>
+                                    ${outcomeBadge}
+                                    ${notesIcon}
+                                </div>
+                            </div>
+                            <div class="event-row-actions">
+                                <button type="button" 
+                                        class="btn btn-sm btn-link event-edit-btn" 
+                                        data-event-id="${data.event.id}"
+                                        title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-sm btn-link text-danger event-delete-btn" 
+                                        data-event-id="${data.event.id}"
+                                        title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-sm btn-link event-expand-btn" 
+                                        title="Expand">
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                            </div>
+                            ${detailsHtml}
+                        </div>
+                    `;
+                    historyList.insertAdjacentHTML('afterbegin', eventHtml);
+                    
+                    // Re-attach event listeners for the new row
+                    attachEventListeners();
+                    
+                    // Attach expand/collapse handler
+                    const newRow = historyList.querySelector(`.event-row-history[data-event-id="${data.event.id}"]`);
+                    if (newRow) {
+                        const expandBtn = newRow.querySelector('.event-expand-btn');
+                        const details = newRow.querySelector('.event-row-details');
+                        const main = newRow.querySelector('.event-row-main');
+                        
+                        if (expandBtn && details && main) {
+                            const toggleExpand = function(e) {
+                                if (e.target.closest('.event-row-actions')) {
+                                    return;
+                                }
+                                const isExpanded = newRow.dataset.expanded === 'true';
+                                newRow.dataset.expanded = !isExpanded;
+                                details.style.display = isExpanded ? 'none' : 'block';
+                                const icon = expandBtn.querySelector('i');
+                                if (icon) {
+                                    icon.className = isExpanded ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
+                                }
+                            };
+                            main.addEventListener('click', toggleExpand);
+                            expandBtn.addEventListener('click', toggleExpand);
+                        }
+                    }
+                } else {
+                    // Create history list if it doesn't exist
+                    if (listHistory) {
+                        const newList = document.createElement('div');
+                        newList.className = 'events-list';
+                        listHistory.appendChild(newList);
+                        
+                        // Recursively call to add the event
+                        setTimeout(() => {
+                            const processBtn = document.getElementById('processEventSubmitBtn');
+                            if (processBtn) {
+                                processBtn.click();
+                            }
+                        }, 100);
+                    }
+                }
+                
+                // Show success message
+                if (data.follow_ups_created > 0) {
+                    showToast('Success', `Event processed! ${data.follow_ups_created} follow-up todo(s) created.`, 'success');
+                    // Reload page to refresh todos list
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showToast('Success', 'Event processed successfully!', 'success');
+                }
+            } else {
+                showToast('Error', data.error || 'Unknown error occurred', 'error');
+            }
+        })
+        .catch(error => {
+            // Re-enable button
+            this.disabled = false;
+            const btnText = this.querySelector('.btn-text');
+            const btnSpinner = this.querySelector('.btn-spinner');
+            if (btnText) btnText.style.display = 'inline';
+            if (btnSpinner) btnSpinner.style.display = 'none';
+            console.error('Error:', error);
+            showToast('Error', 'Failed to process event. Please try again.', 'error');
+        });
+    });
 });
 </script>
 {% endblock %}

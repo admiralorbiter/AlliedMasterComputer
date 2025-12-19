@@ -3,7 +3,8 @@ from unittest.mock import patch, MagicMock
 from flask import url_for, session
 from flask_login import current_user
 from werkzeug.security import generate_password_hash
-from flask_app.models import User, AdminLog, SystemMetrics, db
+from datetime import date, datetime, timedelta, timezone
+from flask_app.models import User, AdminLog, SystemMetrics, Event, Todo, db
 
 
 class TestAuthRoutes:
@@ -684,3 +685,304 @@ class TestSecurityFeatures:
         
         # Should not execute script
         assert b'<script>' not in response.data or b'&lt;script&gt;' in response.data
+
+
+class TestEventProcessing:
+    """Test event processing functionality"""
+    
+    def test_event_process_did_not_happen(self, logged_in_user, app):
+        """Test processing an event as 'did not happen'"""
+        client, user = logged_in_user
+        
+        with app.app_context():
+            # Create a past event
+            past_date = date.today() - timedelta(days=1)
+            event = Event(
+                user_id=user.id,
+                description='Test Event',
+                event_date=past_date,
+                processed=False
+            )
+            db.session.add(event)
+            db.session.commit()
+            event_id = event.id
+            
+            # Process event
+            response = client.post(
+                f'/events/{event_id}/process',
+                json={
+                    'outcome': 'did_not_happen',
+                    'reason': 'Cancelled due to weather'
+                },
+                content_type='application/json'
+            )
+            
+            assert response.status_code == 200
+            data = response.get_json()
+            assert data['success'] is True
+            assert data['event']['outcome'] == 'did_not_happen'
+            assert data['event']['outcome_reason'] == 'Cancelled due to weather'
+            assert data['event']['processed'] is True
+            assert data['follow_ups_created'] == 0
+            
+            # Verify event was updated in database
+            updated_event = Event.query.get(event_id)
+            assert updated_event.processed is True
+            assert updated_event.outcome == 'did_not_happen'
+            assert updated_event.outcome_reason == 'Cancelled due to weather'
+            assert updated_event.processed_at is not None
+    
+    def test_event_process_happened(self, logged_in_user, app):
+        """Test processing an event as 'happened' with no notes"""
+        client, user = logged_in_user
+        
+        with app.app_context():
+            # Create a past event
+            past_date = date.today() - timedelta(days=1)
+            event = Event(
+                user_id=user.id,
+                description='Test Event',
+                event_date=past_date,
+                processed=False
+            )
+            db.session.add(event)
+            db.session.commit()
+            event_id = event.id
+            
+            # Process event
+            response = client.post(
+                f'/events/{event_id}/process',
+                json={
+                    'outcome': 'happened'
+                },
+                content_type='application/json'
+            )
+            
+            assert response.status_code == 200
+            data = response.get_json()
+            assert data['success'] is True
+            assert data['event']['outcome'] == 'happened'
+            assert data['event']['processed'] is True
+            assert data['follow_ups_created'] == 0
+            
+            # Verify event was updated
+            updated_event = Event.query.get(event_id)
+            assert updated_event.processed is True
+            assert updated_event.outcome == 'happened'
+    
+    def test_event_process_happened_with_notes_and_followups(self, logged_in_user, app):
+        """Test processing an event as 'happened with notes' and creating follow-up todos"""
+        client, user = logged_in_user
+        
+        with app.app_context():
+            # Create a past event
+            past_date = date.today() - timedelta(days=1)
+            event = Event(
+                user_id=user.id,
+                description='Test Event',
+                event_date=past_date,
+                processed=False
+            )
+            db.session.add(event)
+            db.session.commit()
+            event_id = event.id
+            
+            # Count existing todos
+            initial_todo_count = Todo.query.filter_by(user_id=user.id).count()
+            
+            # Process event with notes and follow-ups
+            response = client.post(
+                f'/events/{event_id}/process',
+                json={
+                    'outcome': 'happened_with_notes',
+                    'notes': 'Great meeting, discussed future plans',
+                    'follow_ups': 'Follow up with John\nSchedule next meeting\nSend summary email'
+                },
+                content_type='application/json'
+            )
+            
+            assert response.status_code == 200
+            data = response.get_json()
+            assert data['success'] is True
+            assert data['event']['outcome'] == 'happened_with_notes'
+            assert data['event']['outcome_notes'] == 'Great meeting, discussed future plans'
+            assert data['follow_ups_created'] == 3
+            
+            # Verify event was updated
+            updated_event = Event.query.get(event_id)
+            assert updated_event.processed is True
+            assert updated_event.outcome == 'happened_with_notes'
+            assert updated_event.outcome_notes == 'Great meeting, discussed future plans'
+            
+            # Verify follow-up todos were created
+            new_todo_count = Todo.query.filter_by(user_id=user.id).count()
+            assert new_todo_count == initial_todo_count + 3
+            
+            # Verify todo descriptions
+            todos = Todo.query.filter_by(user_id=user.id).order_by(Todo.created_at.desc()).limit(3).all()
+            todo_descriptions = [todo.description for todo in todos]
+            assert 'Follow up with John' in todo_descriptions
+            assert 'Schedule next meeting' in todo_descriptions
+            assert 'Send summary email' in todo_descriptions
+    
+    def test_event_process_invalid_outcome(self, logged_in_user, app):
+        """Test processing with invalid outcome"""
+        client, user = logged_in_user
+        
+        with app.app_context():
+            past_date = date.today() - timedelta(days=1)
+            event = Event(
+                user_id=user.id,
+                description='Test Event',
+                event_date=past_date,
+                processed=False
+            )
+            db.session.add(event)
+            db.session.commit()
+            event_id = event.id
+            
+            response = client.post(
+                f'/events/{event_id}/process',
+                json={
+                    'outcome': 'invalid_outcome'
+                },
+                content_type='application/json'
+            )
+            
+            assert response.status_code == 400
+            data = response.get_json()
+            assert data['success'] is False
+    
+    def test_event_process_not_found(self, logged_in_user):
+        """Test processing non-existent event"""
+        client, user = logged_in_user
+        
+        response = client.post(
+            '/events/99999/process',
+            json={
+                'outcome': 'happened'
+            },
+            content_type='application/json'
+        )
+        
+        assert response.status_code == 404
+    
+    def test_event_process_already_processed(self, logged_in_user, app):
+        """Test processing an already processed event"""
+        client, user = logged_in_user
+        
+        with app.app_context():
+            past_date = date.today() - timedelta(days=1)
+            event = Event(
+                user_id=user.id,
+                description='Test Event',
+                event_date=past_date,
+                processed=True,
+                processed_at=datetime.now(timezone.utc),
+                outcome='happened'
+            )
+            db.session.add(event)
+            db.session.commit()
+            event_id = event.id
+            
+            response = client.post(
+                f'/events/{event_id}/process',
+                json={
+                    'outcome': 'happened'
+                },
+                content_type='application/json'
+            )
+            
+            assert response.status_code == 400
+            data = response.get_json()
+            assert data['success'] is False
+            assert 'already processed' in data['error'].lower()
+    
+    def test_event_process_ownership_protection(self, logged_in_user, app):
+        """Test that users can only process their own events"""
+        client, user = logged_in_user
+        
+        with app.app_context():
+            # Create another user
+            other_user = User(
+                username='otheruser',
+                email='other@example.com',
+                password_hash=generate_password_hash('pass123'),
+                is_active=True
+            )
+            db.session.add(other_user)
+            db.session.commit()
+            
+            # Create event for other user
+            past_date = date.today() - timedelta(days=1)
+            event = Event(
+                user_id=other_user.id,
+                description='Other User Event',
+                event_date=past_date,
+                processed=False
+            )
+            db.session.add(event)
+            db.session.commit()
+            event_id = event.id
+            
+            # Try to process other user's event
+            response = client.post(
+                f'/events/{event_id}/process',
+                json={
+                    'outcome': 'happened'
+                },
+                content_type='application/json'
+            )
+            
+            assert response.status_code == 404  # Should not find event (ownership check)
+    
+    def test_event_query_helpers(self, logged_in_user, app):
+        """Test Event query helper methods"""
+        client, user = logged_in_user
+        
+        with app.app_context():
+            today = date.today()
+            
+            # Create upcoming event
+            upcoming_event = Event(
+                user_id=user.id,
+                description='Upcoming Event',
+                event_date=today + timedelta(days=5),
+                processed=False
+            )
+            db.session.add(upcoming_event)
+            
+            # Create past unprocessed event
+            past_unprocessed = Event(
+                user_id=user.id,
+                description='Past Unprocessed',
+                event_date=today - timedelta(days=2),
+                processed=False
+            )
+            db.session.add(past_unprocessed)
+            
+            # Create processed event
+            processed_event = Event(
+                user_id=user.id,
+                description='Processed Event',
+                event_date=today - timedelta(days=5),
+                processed=True,
+                processed_at=datetime.now(timezone.utc),
+                outcome='happened'
+            )
+            db.session.add(processed_event)
+            
+            db.session.commit()
+            
+            # Test query helpers
+            upcoming = Event.find_upcoming_by_user(user.id)
+            assert len(upcoming) == 1
+            assert upcoming[0].description == 'Upcoming Event'
+            
+            past_unproc = Event.find_past_unprocessed_by_user(user.id)
+            assert len(past_unproc) == 1
+            assert past_unproc[0].description == 'Past Unprocessed'
+            
+            processed = Event.find_processed_by_user(user.id)
+            assert len(processed) == 1
+            assert processed[0].description == 'Processed Event'

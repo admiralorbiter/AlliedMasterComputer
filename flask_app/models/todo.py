@@ -78,6 +78,13 @@ class Event(BaseModel):
     event_date = db.Column(db.Date, nullable=False, index=True)
     notes = db.Column(db.Text, nullable=True)
     
+    # Processing fields
+    processed = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    processed_at = db.Column(db.DateTime, nullable=True)
+    outcome = db.Column(db.String(50), nullable=True)  # 'did_not_happen', 'happened', 'happened_with_notes'
+    outcome_reason = db.Column(db.Text, nullable=True)  # For "didn't happen" option
+    outcome_notes = db.Column(db.Text, nullable=True)  # For "happened with notes" option
+    
     # Relationship to User
     user = db.relationship('User', backref=db.backref('events', lazy='dynamic', cascade='all, delete-orphan'))
     
@@ -105,4 +112,45 @@ class Event(BaseModel):
             from flask import current_app
             current_app.logger.error(f"Database error finding event {event_id} for user {user_id}: {str(e)}")
             return None
+    
+    @staticmethod
+    def find_upcoming_by_user(user_id):
+        """Find all upcoming (future date) unprocessed events for a user"""
+        try:
+            from datetime import date
+            return Event.query.filter_by(user_id=user_id, processed=False)\
+                .filter(Event.event_date >= date.today())\
+                .order_by(Event.event_date.asc(), Event.created_at.asc())\
+                .all()
+        except Exception as e:
+            from flask import current_app
+            current_app.logger.error(f"Database error finding upcoming events for user {user_id}: {str(e)}")
+            return []
+    
+    @staticmethod
+    def find_past_unprocessed_by_user(user_id):
+        """Find all past unprocessed events for a user"""
+        try:
+            from datetime import date
+            return Event.query.filter_by(user_id=user_id, processed=False)\
+                .filter(Event.event_date < date.today())\
+                .order_by(Event.event_date.desc(), Event.created_at.desc())\
+                .all()
+        except Exception as e:
+            from flask import current_app
+            current_app.logger.error(f"Database error finding past unprocessed events for user {user_id}: {str(e)}")
+            return []
+    
+    @staticmethod
+    def find_processed_by_user(user_id, limit=20):
+        """Find recently processed events for a user"""
+        try:
+            return Event.query.filter_by(user_id=user_id, processed=True)\
+                .order_by(Event.processed_at.desc())\
+                .limit(limit)\
+                .all()
+        except Exception as e:
+            from flask import current_app
+            current_app.logger.error(f"Database error finding processed events for user {user_id}: {str(e)}")
+            return []
 
