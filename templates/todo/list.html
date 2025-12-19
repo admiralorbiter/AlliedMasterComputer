@@ -108,9 +108,10 @@
                                 <input type="text" 
                                        class="subtask-input form-control" 
                                        placeholder="Add a subtask..." 
-                                       data-todo-id="{{ todo.id }}">
+                                       data-todo-id="{{ todo.id }}"
+                                       style="display: none;">
                                 <button type="button" 
-                                        class="subtask-add-btn" 
+                                        class="subtask-add-btn subtask-toggle-btn" 
                                         data-todo-id="{{ todo.id }}"
                                         title="Add subtask"
                                         aria-label="Add subtask">
@@ -723,13 +724,25 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Handle subtask input - add on Enter key or button click
-    document.querySelectorAll('.subtask-input').forEach(function(input) {
+    // Handle subtask toggle button (+ button) - show/hide input
+    document.querySelectorAll('.subtask-toggle-btn').forEach(function(toggleBtn) {
+        const form = toggleBtn.closest('.subtask-add-form');
+        const input = form.querySelector('.subtask-input');
+        const todoId = toggleBtn.dataset.todoId;
+        
+        // Function to show input and focus it
+        const showInput = function() {
+            input.style.display = 'block';
+            setTimeout(() => input.focus(), 10);
+        };
+        
+        // Function to add subtask
         const addSubtask = function() {
-            const todoId = input.dataset.todoId;
             const description = input.value.trim();
             
             if (!description) {
+                // If no text, just show the input
+                showInput();
                 return;
             }
             
@@ -864,6 +877,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             });
                         });
                     }
+                    
+                    // Hide input after successfully adding (saves space)
+                    input.style.display = 'none';
                 } else {
                     alert('Error creating subtask: ' + (data.error || 'Unknown error'));
                 }
@@ -875,6 +891,16 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         };
         
+        // Toggle button click - show input if hidden, add subtask if visible and has text
+        toggleBtn.addEventListener('click', function() {
+            if (input.style.display === 'none' || !input.offsetParent) {
+                showInput();
+            } else {
+                addSubtask();
+            }
+        });
+        
+        // Handle Enter key in input
         input.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -882,10 +908,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        const addBtn = input.closest('.subtask-add-form').querySelector('.subtask-add-btn');
-        if (addBtn) {
-            addBtn.addEventListener('click', addSubtask);
-        }
+        // Hide input when it loses focus and is empty (saves space)
+        input.addEventListener('blur', function() {
+            if (!this.value.trim()) {
+                this.style.display = 'none';
+            }
+        });
     });
     
     // Helper function to escape HTML
