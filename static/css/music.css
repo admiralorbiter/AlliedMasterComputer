@@ -171,9 +171,26 @@
 #songDetailsContent {
     padding: 1.5rem;
     max-height: 75vh;
+}
+
+.song-details-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 0.75rem 1.25rem;
+    margin-top: 1.5rem;
+}
+
+.spotify-player-container {
+    width: 100%;
+    margin-bottom: 1.5rem;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.spotify-player-container iframe {
+    display: block;
+    border: none;
 }
 
 .song-detail-item {
@@ -436,9 +453,16 @@
     }
     
     #songDetailsContent {
+        padding: 1rem;
+    }
+    
+    .song-details-grid {
         grid-template-columns: 1fr;
         gap: 0.5rem;
-        padding: 1rem;
+    }
+    
+    .spotify-player-container {
+        margin-bottom: 1rem;
     }
     
     #songDetailsModal .modal-dialog {
@@ -447,7 +471,7 @@
 }
 
 @media (max-width: 1200px) {
-    #songDetailsContent {
+    .song-details-grid {
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 0.65rem 1rem;
     }

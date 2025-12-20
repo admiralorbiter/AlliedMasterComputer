@@ -113,8 +113,40 @@ document.addEventListener('DOMContentLoaded', function() {
             return pitchClasses[value] || String(value);
         };
         
+        // Extract track ID from Spotify URI
+        const extractTrackId = (trackUri) => {
+            if (!trackUri) return null;
+            // Format: spotify:track:1CPZ5BxNNd0n0nF40rb9JS
+            const match = trackUri.match(/spotify:track:([a-zA-Z0-9]+)/);
+            return match ? match[1] : null;
+        };
+        
+        // Generate Spotify player HTML
+        const getSpotifyPlayer = (trackUri) => {
+            const trackId = extractTrackId(trackUri);
+            if (!trackId) {
+                return '<div class="spotify-player-container" style="padding: 1rem; background: #f8f9fa; border-radius: 8px; text-align: center; color: #6c757d;"><i class="fas fa-exclamation-circle"></i> Invalid track URI - cannot load player</div>';
+            }
+            const embedUrl = `https://open.spotify.com/embed/track/${trackId}`;
+            return `
+                <div class="spotify-player-container">
+                    <iframe 
+                        src="${embedUrl}" 
+                        width="100%" 
+                        height="152" 
+                        frameborder="0" 
+                        allowtransparency="true" 
+                        allow="encrypted-media"
+                        loading="lazy">
+                    </iframe>
+                </div>
+            `;
+        };
+        
         // Use a more compact grid layout
         return `
+            ${getSpotifyPlayer(song.track_uri)}
+            <div class="song-details-grid">
             <div class="song-detail-item" style="grid-column: 1 / -1;">
                 <div class="song-detail-label">Track URI</div>
                 <div class="song-detail-value"><code>${formatValue(song.track_uri)}</code></div>
@@ -210,6 +242,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="song-detail-item">
                 <div class="song-detail-label">Time Signature</div>
                 <div class="song-detail-value">${formatValue(song.time_signature)}</div>
+            </div>
             </div>
         `;
     }
