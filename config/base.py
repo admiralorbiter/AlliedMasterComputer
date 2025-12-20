@@ -22,6 +22,12 @@ class Config:
     # File upload configuration
     MAX_CONTENT_LENGTH = 25 * 1024 * 1024  # 25 MB
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', 'uploads')  # Optional, for temporary storage if needed
+    
+    # Spotify OAuth configuration
+    SPOTIPY_CLIENT_ID = os.environ.get('SPOTIPY_CLIENT_ID')
+    SPOTIPY_CLIENT_SECRET = os.environ.get('SPOTIPY_CLIENT_SECRET')
+    SPOTIPY_REDIRECT_URI = os.environ.get('SPOTIPY_REDIRECT_URI', 'http://127.0.0.1:5000/music/spotify/callback')
+    SPOTIPY_SCOPE = os.environ.get('SPOTIPY_SCOPE', 'playlist-modify-public,playlist-modify-private,playlist-read-private,playlist-read-collaborative')
 
 class DevelopmentConfig(Config):
     DEBUG = True

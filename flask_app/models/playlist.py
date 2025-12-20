@@ -23,6 +23,10 @@ class Playlist(BaseModel):
     name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=True)
     
+    # Spotify integration fields
+    spotify_playlist_id = db.Column(db.String(255), nullable=True)
+    spotify_synced_at = db.Column(db.DateTime, nullable=True)
+    
     # Relationship to User
     user = db.relationship('User', backref=db.backref('playlists', lazy='dynamic', cascade='all, delete-orphan'))
     
@@ -45,9 +49,16 @@ class Playlist(BaseModel):
             'name': self.name,
             'description': self.description,
             'song_count': self.songs.count(),
+            'spotify_playlist_id': self.spotify_playlist_id,
+            'spotify_synced_at': self.spotify_synced_at.isoformat() if self.spotify_synced_at else None,
+            'is_synced_to_spotify': self.is_synced_to_spotify(),
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
+    
+    def is_synced_to_spotify(self):
+        """Check if playlist is synced to Spotify"""
+        return self.spotify_playlist_id is not None and self.spotify_playlist_id != ''
     
     def get_total_duration_ms(self):
         """Calculate total duration of all songs in playlist in milliseconds"""

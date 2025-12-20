@@ -35,6 +35,7 @@ pip install -r requirements.txt
    - Create a `.env` file in the root directory
    - Configure your database and secret key settings
    - For Research Brief feature: Set `OPENAI_API_KEY` (optional: `OPENAI_MODEL`, defaults to 'gpt-4-turbo')
+   - For Spotify integration: Set `SPOTIPY_CLIENT_ID`, `SPOTIPY_CLIENT_SECRET`, and `SPOTIPY_REDIRECT_URI` (defaults to `http://localhost:5000/music/spotify/callback`)
 
 4. Initialize the database:
 ```bash

@@ -22,9 +22,26 @@
                 <span class="playlist-duration">
                     <i class="fas fa-clock"></i> {{ playlist.get_total_duration_formatted() }}
                 </span>
+                {% if playlist.is_synced_to_spotify() %}
+                <span class="playlist-spotify-sync ms-2" title="Synced to Spotify on {{ playlist.spotify_synced_at.strftime('%Y-%m-%d %H:%M') if playlist.spotify_synced_at else 'N/A' }}">
+                    <i class="fab fa-spotify text-success"></i> <small>On Spotify</small>
+                </span>
+                {% endif %}
             </div>
         </div>
         <div class="playlist-view-actions">
+            {% if playlist.is_synced_to_spotify() %}
+            <a href="https://open.spotify.com/playlist/{{ playlist.spotify_playlist_id }}" target="_blank" class="btn btn-success" title="Open in Spotify">
+                <i class="fab fa-spotify"></i> Open in Spotify
+            </a>
+            <button type="button" id="resync-to-spotify-btn" class="btn btn-warning" title="Re-sync to Spotify">
+                <i class="fas fa-sync"></i> Re-sync
+            </button>
+            {% else %}
+            <button type="button" id="export-to-spotify-btn" class="btn btn-success" title="Export to Spotify">
+                <i class="fab fa-spotify"></i> Export to Spotify
+            </button>
+            {% endif %}
             <a href="{{ url_for('music_library') }}?playlist_id={{ playlist.id }}" class="btn btn-primary">
                 <i class="fas fa-plus"></i> Add Songs
             </a>
@@ -123,6 +140,7 @@
 {% block extra_js %}
 <script>
     const PLAYLIST_ID = {{ playlist.id }};
+    const PLAYLIST_IS_SYNCED = {{ 'true' if playlist.is_synced_to_spotify() else 'false' }};
 </script>
 <script src="{{ url_for('static', filename='js/playlists.js') }}"></script>
 {% endblock %}

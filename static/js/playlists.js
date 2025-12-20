@@ -259,6 +259,293 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // ========== SPOTIFY INTEGRATION ==========
+    
+    // Check Spotify connection status
+    const spotifyStatusIndicator = document.getElementById('spotify-status-indicator');
+    const spotifyConnectBtn = document.getElementById('spotify-connect-btn');
+    const spotifyDisconnectBtn = document.getElementById('spotify-disconnect-btn');
+    const importFromSpotifyBtn = document.getElementById('import-from-spotify-btn');
+    
+    function checkSpotifyStatus() {
+        fetch('/music/spotify/status')
+            .then(response => response.json())
+            .then(data => {
+                if (data.authenticated && data.is_valid) {
+                    if (spotifyStatusIndicator) {
+                        spotifyStatusIndicator.textContent = 'Connected';
+                        spotifyStatusIndicator.className = 'badge bg-success';
+                        spotifyStatusIndicator.style.display = 'inline-block';
+                    }
+                    if (spotifyConnectBtn) spotifyConnectBtn.style.display = 'none';
+                    if (spotifyDisconnectBtn) spotifyDisconnectBtn.style.display = 'inline-block';
+                    if (importFromSpotifyBtn) importFromSpotifyBtn.style.display = 'inline-block';
+                } else {
+                    if (spotifyStatusIndicator) {
+                        spotifyStatusIndicator.textContent = 'Not Connected';
+                        spotifyStatusIndicator.className = 'badge bg-secondary';
+                        spotifyStatusIndicator.style.display = 'inline-block';
+                    }
+                    if (spotifyConnectBtn) spotifyConnectBtn.style.display = 'inline-block';
+                    if (spotifyDisconnectBtn) spotifyDisconnectBtn.style.display = 'none';
+                    if (importFromSpotifyBtn) importFromSpotifyBtn.style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Error checking Spotify status:', error);
+                if (spotifyStatusIndicator) {
+                    spotifyStatusIndicator.textContent = 'Error';
+                    spotifyStatusIndicator.className = 'badge bg-danger';
+                }
+            });
+    }
+    
+    // Check status on page load
+    if (spotifyStatusIndicator || spotifyConnectBtn) {
+        checkSpotifyStatus();
+    }
+    
+    // Connect to Spotify
+    if (spotifyConnectBtn) {
+        spotifyConnectBtn.addEventListener('click', function() {
+            window.location.href = '/music/spotify/authorize';
+        });
+    }
+    
+    // Disconnect from Spotify
+    if (spotifyDisconnectBtn) {
+        spotifyDisconnectBtn.addEventListener('click', function() {
+            if (!confirm('Are you sure you want to disconnect from Spotify?')) {
+                return;
+            }
+            
+            fetch('/music/spotify/disconnect', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error disconnecting: ' + data.error);
+                    return;
+                }
+                showNotification('Disconnected from Spotify', 'success');
+                checkSpotifyStatus();
+            })
+            .catch(error => {
+                console.error('Error disconnecting:', error);
+                alert('Error disconnecting from Spotify. Please try again.');
+            });
+        });
+    }
+    
+    // Export playlist to Spotify
+    const exportToSpotifyBtn = document.getElementById('export-to-spotify-btn');
+    if (exportToSpotifyBtn) {
+        exportToSpotifyBtn.addEventListener('click', function() {
+            if (!confirm('Export this playlist to Spotify? It will be created as a private playlist.')) {
+                return;
+            }
+            
+            exportToSpotifyBtn.disabled = true;
+            exportToSpotifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+            
+            fetch(`/music/playlists/${PLAYLIST_ID}/export-to-spotify`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ public: false })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error exporting to Spotify: ' + data.error);
+                    exportToSpotifyBtn.disabled = false;
+                    exportToSpotifyBtn.innerHTML = '<i class="fab fa-spotify"></i> Export to Spotify';
+                    return;
+                }
+                
+                showNotification('Playlist exported to Spotify successfully!', 'success');
+                // Reload page to show updated status
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            })
+            .catch(error => {
+                console.error('Error exporting to Spotify:', error);
+                alert('Error exporting to Spotify. Please try again.');
+                exportToSpotifyBtn.disabled = false;
+                exportToSpotifyBtn.innerHTML = '<i class="fab fa-spotify"></i> Export to Spotify';
+            });
+        });
+    }
+    
+    // Re-sync playlist to Spotify
+    const resyncToSpotifyBtn = document.getElementById('resync-to-spotify-btn');
+    if (resyncToSpotifyBtn) {
+        resyncToSpotifyBtn.addEventListener('click', function() {
+            if (!confirm('Re-sync this playlist to Spotify? This will update the existing Spotify playlist.')) {
+                return;
+            }
+            
+            resyncToSpotifyBtn.disabled = true;
+            resyncToSpotifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+            
+            fetch(`/music/playlists/${PLAYLIST_ID}/export-to-spotify`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ public: false, force: true })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error syncing to Spotify: ' + data.error);
+                    resyncToSpotifyBtn.disabled = false;
+                    resyncToSpotifyBtn.innerHTML = '<i class="fas fa-sync"></i> Re-sync';
+                    return;
+                }
+                
+                showNotification('Playlist synced to Spotify successfully!', 'success');
+                // Reload page to show updated status
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            })
+            .catch(error => {
+                console.error('Error syncing to Spotify:', error);
+                alert('Error syncing to Spotify. Please try again.');
+                resyncToSpotifyBtn.disabled = false;
+                resyncToSpotifyBtn.innerHTML = '<i class="fas fa-sync"></i> Re-sync';
+            });
+        });
+    }
+    
+    // Import from Spotify modal
+    const importSpotifyModal = document.getElementById('importSpotifyModal');
+    const spotifyPlaylistsLoading = document.getElementById('spotify-playlists-loading');
+    const spotifyPlaylistsList = document.getElementById('spotify-playlists-list');
+    const spotifyPlaylistsContainer = document.getElementById('spotify-playlists-container');
+    const spotifyPlaylistsError = document.getElementById('spotify-playlists-error');
+    const spotifyPlaylistsErrorMessage = document.getElementById('spotify-playlists-error-message');
+    
+    if (importFromSpotifyBtn) {
+        importFromSpotifyBtn.addEventListener('click', function() {
+            // Show loading
+            spotifyPlaylistsLoading.style.display = 'block';
+            spotifyPlaylistsList.style.display = 'none';
+            spotifyPlaylistsError.style.display = 'none';
+            spotifyPlaylistsContainer.innerHTML = '';
+            
+            // Show modal
+            const modal = new bootstrap.Modal(importSpotifyModal);
+            modal.show();
+            
+            // Load playlists
+            loadSpotifyPlaylists();
+        });
+    }
+    
+    function loadSpotifyPlaylists() {
+        fetch('/music/spotify/playlists?limit=50')
+            .then(response => response.json())
+            .then(data => {
+                spotifyPlaylistsLoading.style.display = 'none';
+                
+                if (data.error) {
+                    spotifyPlaylistsError.style.display = 'block';
+                    spotifyPlaylistsErrorMessage.textContent = data.error;
+                    return;
+                }
+                
+                const playlists = data.playlists || [];
+                if (playlists.length === 0) {
+                    spotifyPlaylistsContainer.innerHTML = '<div class="alert alert-info">No playlists found in your Spotify account.</div>';
+                    spotifyPlaylistsList.style.display = 'block';
+                    return;
+                }
+                
+                // Render playlists
+                playlists.forEach(playlist => {
+                    const item = document.createElement('div');
+                    item.className = 'list-group-item list-group-item-action';
+                    item.innerHTML = `
+                        <div class="d-flex w-100 justify-content-between">
+                            <div>
+                                <h6 class="mb-1">${escapeHtml(playlist.name)}</h6>
+                                ${playlist.description ? `<p class="mb-1 text-muted small">${escapeHtml(playlist.description)}</p>` : ''}
+                                <small class="text-muted">${playlist.tracks?.total || 0} tracks</small>
+                            </div>
+                            <button class="btn btn-sm btn-primary import-playlist-btn" data-spotify-id="${playlist.id}" data-playlist-name="${escapeHtml(playlist.name)}">
+                                Import
+                            </button>
+                        </div>
+                    `;
+                    spotifyPlaylistsContainer.appendChild(item);
+                });
+                
+                spotifyPlaylistsList.style.display = 'block';
+                
+                // Add click handlers for import buttons
+                document.querySelectorAll('.import-playlist-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const spotifyId = this.dataset.spotifyId;
+                        const playlistName = this.dataset.playlistName;
+                        
+                        if (!confirm(`Import "${playlistName}" from Spotify?`)) {
+                            return;
+                        }
+                        
+                        this.disabled = true;
+                        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
+                        
+                        fetch(`/music/spotify/playlists/${spotifyId}/import`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ name: playlistName })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.error) {
+                                alert('Error importing playlist: ' + data.error);
+                                this.disabled = false;
+                                this.innerHTML = 'Import';
+                                return;
+                            }
+                            
+                            showNotification(`Imported "${playlistName}" (${data.added_count} tracks added, ${data.skipped_count} skipped)`, 'success');
+                            // Close modal and reload page
+                            bootstrap.Modal.getInstance(importSpotifyModal).hide();
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                        })
+                        .catch(error => {
+                            console.error('Error importing playlist:', error);
+                            alert('Error importing playlist. Please try again.');
+                            this.disabled = false;
+                            this.innerHTML = 'Import';
+                        });
+                    });
+                });
+            })
+            .catch(error => {
+                console.error('Error loading Spotify playlists:', error);
+                spotifyPlaylistsLoading.style.display = 'none';
+                spotifyPlaylistsError.style.display = 'block';
+                spotifyPlaylistsErrorMessage.textContent = 'Error loading playlists. Please try again.';
+            });
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
     // Notification helper
     function showNotification(message, type = 'info') {
         const toast = document.createElement('div');

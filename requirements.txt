@@ -36,6 +36,9 @@ pdfplumber>=0.10.0
 # HTML Sanitization
 bleach>=6.0.0
 
+# Spotify Integration
+spotipy>=2.25.2
+
 # Development (optional - add to dev-requirements.txt)
 # black==23.11.0
 # isort==5.12.0

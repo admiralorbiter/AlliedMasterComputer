@@ -3,10 +3,22 @@
 from flask import flash, redirect, render_template, url_for, request, current_app, jsonify
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from flask_app.models import Song, MusicImportJob, Playlist, db
+from flask_app.models import Song, MusicImportJob, Playlist, SpotifyAuth, db
+from flask_app.utils.spotify_service import SpotifyService
 import os
 import threading
 from datetime import datetime, timezone
+from functools import wraps
+
+def admin_required(f):
+    """Decorator to require admin privileges"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_admin:
+            flash('Admin privileges required.', 'danger')
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 def register_music_routes(app):
     """Register music library routes"""
@@ -353,6 +365,197 @@ def register_music_routes(app):
             return jsonify([p.to_dict() for p in playlists])
         except Exception as e:
             current_app.logger.error(f"Error getting user playlists: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+
+    # ========== SPOTIFY OAUTH ROUTES ==========
+    
+    @app.route('/music/spotify/authorize')
+    @login_required
+    @admin_required
+    def spotify_authorize():
+        """Initiate Spotify OAuth authorization (admin-only)"""
+        try:
+            spotify_service = SpotifyService()
+            auth_url = spotify_service.get_authorize_url()
+            current_app.logger.info(f"Spotify authorization initiated by {current_user.username}")
+            return redirect(auth_url)
+        except Exception as e:
+            current_app.logger.error(f"Error initiating Spotify authorization: {str(e)}")
+            flash(f'Error connecting to Spotify: {str(e)}', 'danger')
+            return redirect(url_for('playlists_list'))
+    
+    @app.route('/music/spotify/callback')
+    @login_required
+    def spotify_callback():
+        """Handle Spotify OAuth callback"""
+        try:
+            code = request.args.get('code')
+            error = request.args.get('error')
+            
+            if error:
+                current_app.logger.error(f"Spotify OAuth error: {error}")
+                flash(f'Spotify authorization failed: {error}', 'danger')
+                return redirect(url_for('playlists_list'))
+            
+            if not code:
+                flash('No authorization code received from Spotify.', 'danger')
+                return redirect(url_for('playlists_list'))
+            
+            spotify_service = SpotifyService()
+            token_info, error = spotify_service.get_access_token_from_code(code, current_user.id)
+            
+            if error:
+                current_app.logger.error(f"Error exchanging code for token: {error}")
+                flash(f'Error completing Spotify authorization: {error}', 'danger')
+                return redirect(url_for('playlists_list'))
+            
+            current_app.logger.info(f"Spotify authorization completed by {current_user.username}")
+            flash('Successfully connected to Spotify!', 'success')
+            return redirect(url_for('playlists_list'))
+            
+        except Exception as e:
+            current_app.logger.error(f"Error in Spotify callback: {str(e)}")
+            flash(f'Error completing Spotify authorization: {str(e)}', 'danger')
+            return redirect(url_for('playlists_list'))
+    
+    @app.route('/music/spotify/status')
+    @login_required
+    def spotify_status():
+        """Check Spotify authentication status"""
+        try:
+            auth = SpotifyAuth.get_active_auth()
+            if auth:
+                return jsonify({
+                    'authenticated': True,
+                    'user_id': auth.user_id,
+                    'scope': auth.scope,
+                    'expires_at': auth.token_expires_at.isoformat() if auth.token_expires_at else None,
+                    'is_valid': auth.is_valid()
+                })
+            else:
+                return jsonify({'authenticated': False})
+        except Exception as e:
+            current_app.logger.error(f"Error checking Spotify status: {str(e)}")
+            return jsonify({'error': str(e), 'authenticated': False}), 500
+    
+    @app.route('/music/spotify/disconnect', methods=['POST'])
+    @login_required
+    @admin_required
+    def spotify_disconnect():
+        """Disconnect Spotify (remove tokens, admin-only)"""
+        try:
+            # Delete all Spotify auth records (for shared account)
+            deleted_count = SpotifyAuth.query.delete()
+            db.session.commit()
+            
+            current_app.logger.info(f"Spotify disconnected by {current_user.username}, removed {deleted_count} auth record(s)")
+            return jsonify({'success': True, 'message': 'Disconnected from Spotify'})
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error disconnecting Spotify: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+    
+    # ========== SPOTIFY PLAYLIST SYNC ROUTES ==========
+    
+    @app.route('/music/playlists/<int:playlist_id>/export-to-spotify', methods=['POST'])
+    @login_required
+    def playlist_export_to_spotify(playlist_id):
+        """Export local playlist to Spotify"""
+        try:
+            playlist = Playlist.find_by_id_and_user(playlist_id, current_user.id)
+            if not playlist:
+                return jsonify({'error': 'Playlist not found'}), 404
+            
+            # Check if already synced (optional: allow re-sync)
+            data = request.get_json() or {}
+            public = data.get('public', False)
+            force_resync = data.get('force', False)
+            
+            if playlist.is_synced_to_spotify() and not force_resync:
+                return jsonify({
+                    'error': 'Playlist already synced to Spotify. Use force=true to re-sync.',
+                    'spotify_playlist_id': playlist.spotify_playlist_id
+                }), 400
+            
+            spotify_service = SpotifyService()
+            spotify_playlist, error = spotify_service.sync_local_to_spotify(playlist, public=public)
+            
+            if error:
+                return jsonify({'error': error}), 500
+            
+            # Update playlist with Spotify info
+            success, error = playlist.safe_update(
+                spotify_playlist_id=spotify_playlist['id'],
+                spotify_synced_at=datetime.now(timezone.utc)
+            )
+            
+            if not success:
+                current_app.logger.error(f"Error updating playlist with Spotify ID: {error}")
+            
+            current_app.logger.info(f"Playlist {playlist_id} exported to Spotify by {current_user.username}")
+            return jsonify({
+                'success': True,
+                'spotify_playlist': spotify_playlist,
+                'playlist': playlist.to_dict()
+            })
+            
+        except Exception as e:
+            current_app.logger.error(f"Error exporting playlist to Spotify: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/music/spotify/playlists')
+    @login_required
+    def spotify_playlists():
+        """Get user's Spotify playlists"""
+        try:
+            limit = request.args.get('limit', 50, type=int)
+            offset = request.args.get('offset', 0, type=int)
+            
+            spotify_service = SpotifyService()
+            playlists, error = spotify_service.get_user_playlists(limit=limit, offset=offset)
+            
+            if error:
+                return jsonify({'error': error}), 500
+            
+            return jsonify({
+                'playlists': playlists.get('items', []),
+                'total': playlists.get('total', 0),
+                'limit': playlists.get('limit', limit),
+                'offset': playlists.get('offset', offset)
+            })
+            
+        except Exception as e:
+            current_app.logger.error(f"Error getting Spotify playlists: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/music/spotify/playlists/<spotify_playlist_id>/import', methods=['POST'])
+    @login_required
+    def spotify_playlist_import(spotify_playlist_id):
+        """Import Spotify playlist to local system"""
+        try:
+            data = request.get_json() or {}
+            playlist_name = data.get('name')  # Optional override
+            
+            spotify_service = SpotifyService()
+            result, error = spotify_service.sync_spotify_to_local(
+                spotify_playlist_id=spotify_playlist_id,
+                local_user_id=current_user.id,
+                playlist_name=playlist_name
+            )
+            
+            if error:
+                return jsonify({'error': error}), 500
+            
+            current_app.logger.info(f"Imported Spotify playlist {spotify_playlist_id} by {current_user.username}")
+            return jsonify({
+                'success': True,
+                'playlist': result['playlist'].to_dict(),
+                'added_count': result['added_count'],
+                'skipped_count': result['skipped_count']
+            }), 201
+            
+        except Exception as e:
+            current_app.logger.error(f"Error importing Spotify playlist: {str(e)}")
             return jsonify({'error': str(e)}), 500
 
 def import_csv_background(job_id, file_path, app):

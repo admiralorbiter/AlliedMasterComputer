@@ -12,8 +12,22 @@
     <div class="playlists-header">
         <h1><i class="fas fa-list"></i> My Playlists</h1>
         <div class="header-actions">
+            {% if current_user.is_admin %}
+            <div id="spotify-connection-status" class="me-2" style="display: inline-block;">
+                <span id="spotify-status-indicator" class="badge bg-secondary">Checking...</span>
+                <button type="button" id="spotify-connect-btn" class="btn btn-success btn-sm" style="display: none;">
+                    <i class="fab fa-spotify"></i> Connect to Spotify
+                </button>
+                <button type="button" id="spotify-disconnect-btn" class="btn btn-danger btn-sm" style="display: none;">
+                    <i class="fab fa-spotify"></i> Disconnect
+                </button>
+            </div>
+            {% endif %}
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPlaylistModal">
                 <i class="fas fa-plus"></i> Create Playlist
+            </button>
+            <button type="button" id="import-from-spotify-btn" class="btn btn-info" style="display: none;">
+                <i class="fab fa-spotify"></i> Import from Spotify
             </button>
         </div>
     </div>
@@ -55,6 +69,11 @@
                 <span class="playlist-duration">
                     <i class="fas fa-clock"></i> {{ playlist.get_total_duration_formatted() }}
                 </span>
+                {% if playlist.is_synced_to_spotify() %}
+                <span class="playlist-spotify-sync" title="Synced to Spotify">
+                    <i class="fab fa-spotify text-success"></i>
+                </span>
+                {% endif %}
             </div>
         </div>
         {% endfor %}
@@ -131,6 +150,39 @@
                 <button type="button" class="btn btn-primary" id="editPlaylistSubmit">
                     <i class="fas fa-save"></i> Save
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import from Spotify Modal -->
+<div class="modal fade" id="importSpotifyModal" tabindex="-1" aria-labelledby="importSpotifyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importSpotifyModalLabel">
+                    <i class="fab fa-spotify me-2"></i>Import Playlist from Spotify
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="spotify-playlists-loading" class="text-center py-4">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading your Spotify playlists...</p>
+                </div>
+                <div id="spotify-playlists-list" style="display: none;">
+                    <div class="list-group" id="spotify-playlists-container">
+                        <!-- Spotify playlists will be loaded here -->
+                    </div>
+                </div>
+                <div id="spotify-playlists-error" class="alert alert-danger" style="display: none;">
+                    <i class="fas fa-exclamation-triangle"></i> <span id="spotify-playlists-error-message"></span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
