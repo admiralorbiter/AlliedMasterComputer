@@ -31,6 +31,14 @@
             <li class="nav-item">
               <a class="nav-link" href="{{ url_for('projects_list') }}">Projects</a>
             </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="musicDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                Music
+              </a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="{{ url_for('music_library') }}">Music Library</a></li>
+              </ul>
+            </li>
             <li class="nav-item">
               <span class="nav-link">Welcome, {{ current_user.username }}</span>
             </li>

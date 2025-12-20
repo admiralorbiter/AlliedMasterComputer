@@ -10,6 +10,7 @@ from .research import register_research_routes
 from .todo import register_todo_routes
 from .goals import register_goals_routes
 from .projects import register_projects_routes
+from .music import register_music_routes
 
 def init_routes(app):
     """Initialize all application routes"""
@@ -20,3 +21,4 @@ def init_routes(app):
     register_todo_routes(app)
     register_goals_routes(app)
     register_projects_routes(app)
+    register_music_routes(app)
