@@ -94,8 +94,8 @@ class Song(BaseModel):
             return None
     
     @staticmethod
-    def search(query, explicit_filter=None, min_popularity=None, page=1, per_page=20):
-        """Search songs with filters and pagination"""
+    def search(query, explicit_filter=None, min_popularity=None, page=1, per_page=20, sort_by=None, sort_order='asc'):
+        """Search songs with filters, pagination, and sorting"""
         try:
             q = Song.query
             
@@ -118,8 +118,26 @@ class Song(BaseModel):
             if min_popularity is not None:
                 q = q.filter(Song.popularity >= min_popularity)
             
-            # Order by popularity descending, then by track name
-            q = q.order_by(Song.popularity.desc().nullslast(), Song.track_name.asc())
+            # Sorting
+            valid_sort_fields = {
+                'track_name': Song.track_name,
+                'artist_names': Song.artist_names,
+                'album_name': Song.album_name,
+                'release_date': Song.release_date,
+                'popularity': Song.popularity,
+                'explicit': Song.explicit,
+                'tempo': Song.tempo
+            }
+            
+            if sort_by and sort_by in valid_sort_fields:
+                sort_field = valid_sort_fields[sort_by]
+                if sort_order == 'desc':
+                    q = q.order_by(sort_field.desc().nullslast())
+                else:
+                    q = q.order_by(sort_field.asc().nullslast())
+            else:
+                # Default: Order by popularity descending, then by track name
+                q = q.order_by(Song.popularity.desc().nullslast(), Song.track_name.asc())
             
             return q.paginate(page=page, per_page=per_page, error_out=False)
         except Exception as e:

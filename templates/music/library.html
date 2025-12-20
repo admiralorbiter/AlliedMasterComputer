@@ -19,7 +19,9 @@
 
     <!-- Search and Filters -->
     <div class="music-filters">
-        <form method="GET" action="{{ url_for('music_library') }}" class="row g-3">
+        <form method="GET" action="{{ url_for('music_library') }}" class="row g-3" id="searchForm">
+            {% if sort_by %}<input type="hidden" name="sort_by" value="{{ sort_by }}">{% endif %}
+            {% if sort_order %}<input type="hidden" name="sort_order" value="{{ sort_order }}">{% endif %}
             <div class="col-md-4">
                 <input type="text" 
                        class="form-control" 
@@ -62,13 +64,34 @@
         <table class="table table-striped table-hover">
             <thead>
                 <tr>
-                    <th>Track Name</th>
-                    <th>Artist</th>
-                    <th>Album</th>
-                    <th>Release Date</th>
-                    <th>Popularity</th>
-                    <th>Explicit</th>
-                    <th>Tempo</th>
+                    <th class="sortable {% if sort_by == 'track_name' %}sort-{{ sort_order }}{% endif %}" data-sort="track_name">
+                        Track Name
+                        <span class="sort-indicator"></span>
+                    </th>
+                    <th class="sortable {% if sort_by == 'artist_names' %}sort-{{ sort_order }}{% endif %}" data-sort="artist_names">
+                        Artist
+                        <span class="sort-indicator"></span>
+                    </th>
+                    <th class="sortable {% if sort_by == 'album_name' %}sort-{{ sort_order }}{% endif %}" data-sort="album_name">
+                        Album
+                        <span class="sort-indicator"></span>
+                    </th>
+                    <th class="sortable {% if sort_by == 'release_date' %}sort-{{ sort_order }}{% endif %}" data-sort="release_date">
+                        Release Date
+                        <span class="sort-indicator"></span>
+                    </th>
+                    <th class="sortable {% if sort_by == 'popularity' %}sort-{{ sort_order }}{% endif %}" data-sort="popularity">
+                        Popularity
+                        <span class="sort-indicator"></span>
+                    </th>
+                    <th class="sortable {% if sort_by == 'explicit' %}sort-{{ sort_order }}{% endif %}" data-sort="explicit">
+                        Explicit
+                        <span class="sort-indicator"></span>
+                    </th>
+                    <th class="sortable {% if sort_by == 'tempo' %}sort-{{ sort_order }}{% endif %}" data-sort="tempo">
+                        Tempo
+                        <span class="sort-indicator"></span>
+                    </th>
                 </tr>
             </thead>
             <tbody>
@@ -119,7 +142,7 @@
         <ul class="pagination justify-content-center">
             {% if songs.has_prev %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('music_library', page=songs.prev_num, q=query, explicit=explicit_filter, min_popularity=min_popularity) }}">Previous</a>
+                    <a class="page-link" href="{{ url_for('music_library', page=songs.prev_num, q=query, explicit=explicit_filter, min_popularity=min_popularity, sort_by=sort_by, sort_order=sort_order) }}">Previous</a>
                 </li>
             {% endif %}
             
@@ -127,7 +150,7 @@
                 {% if page_num %}
                     {% if page_num != songs.page %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('music_library', page=page_num, q=query, explicit=explicit_filter, min_popularity=min_popularity) }}">{{ page_num }}</a>
+                            <a class="page-link" href="{{ url_for('music_library', page=page_num, q=query, explicit=explicit_filter, min_popularity=min_popularity, sort_by=sort_by, sort_order=sort_order) }}">{{ page_num }}</a>
                         </li>
                     {% else %}
                         <li class="page-item active">
@@ -143,7 +166,7 @@
             
             {% if songs.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('music_library', page=songs.next_num, q=query, explicit=explicit_filter, min_popularity=min_popularity) }}">Next</a>
+                    <a class="page-link" href="{{ url_for('music_library', page=songs.next_num, q=query, explicit=explicit_filter, min_popularity=min_popularity, sort_by=sort_by, sort_order=sort_order) }}">Next</a>
                 </li>
             {% endif %}
         </ul>

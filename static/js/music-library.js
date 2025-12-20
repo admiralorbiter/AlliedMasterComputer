@@ -10,6 +10,33 @@ document.addEventListener('DOMContentLoaded', function() {
         return null;
     }
 
+    // Table header sorting
+    document.querySelectorAll('.table thead th.sortable').forEach(function(header) {
+        header.addEventListener('click', function(e) {
+            const sortField = this.dataset.sort;
+            if (!sortField) return;
+            
+            // Get current sort parameters from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const currentSort = urlParams.get('sort_by');
+            const currentOrder = urlParams.get('sort_order') || 'asc';
+            
+            // Determine new sort order
+            let newOrder = 'asc';
+            if (currentSort === sortField && currentOrder === 'asc') {
+                newOrder = 'desc';
+            }
+            
+            // Update URL parameters
+            urlParams.set('sort_by', sortField);
+            urlParams.set('sort_order', newOrder);
+            urlParams.set('page', '1'); // Reset to first page when sorting
+            
+            // Navigate to new URL
+            window.location.href = window.location.pathname + '?' + urlParams.toString();
+        });
+    });
+
     // Song row click handler - show details modal
     document.querySelectorAll('.song-row').forEach(function(row) {
         row.addEventListener('click', function(e) {

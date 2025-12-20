@@ -20,6 +20,8 @@ def register_music_routes(app):
             query = request.args.get('q', '').strip()
             explicit_filter = request.args.get('explicit', type=str)
             min_popularity = request.args.get('min_popularity', type=int)
+            sort_by = request.args.get('sort_by', type=str)
+            sort_order = request.args.get('sort_order', 'asc', type=str)
             
             # Convert explicit filter string to bool
             explicit_bool = None
@@ -28,13 +30,19 @@ def register_music_routes(app):
             elif explicit_filter == 'false':
                 explicit_bool = False
             
+            # Validate sort_order
+            if sort_order not in ['asc', 'desc']:
+                sort_order = 'asc'
+            
             # Search songs with filters
             songs = Song.search(
                 query=query if query else None,
                 explicit_filter=explicit_bool,
                 min_popularity=min_popularity,
                 page=page,
-                per_page=20
+                per_page=20,
+                sort_by=sort_by,
+                sort_order=sort_order
             )
             
             if songs is None:
@@ -43,14 +51,15 @@ def register_music_routes(app):
             
             current_app.logger.info(f"Music library accessed by {current_user.username}")
             return render_template('music/library.html', songs=songs, query=query, 
-                                 explicit_filter=explicit_filter, min_popularity=min_popularity)
+                                 explicit_filter=explicit_filter, min_popularity=min_popularity,
+                                 sort_by=sort_by, sort_order=sort_order)
             
         except Exception as e:
             current_app.logger.error(f"Error in music library: {str(e)}")
             flash('An error occurred while loading the music library.', 'danger')
             songs = Song.query.paginate(page=1, per_page=20, error_out=False)
             return render_template('music/library.html', songs=songs, query='', 
-                                 explicit_filter=None, min_popularity=None)
+                                 explicit_filter=None, min_popularity=None, sort_by=None, sort_order='asc')
     
     @app.route('/music/library/song')
     @login_required
