@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Playlists{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/music.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/playlists.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="playlists-container">
+    <div class="playlists-header">
+        <h1><i class="fas fa-list"></i> My Playlists</h1>
+        <div class="header-actions">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPlaylistModal">
+                <i class="fas fa-plus"></i> Create Playlist
+            </button>
+        </div>
+    </div>
+
+    <!-- Playlists Grid -->
+    {% if playlists %}
+    <div class="playlists-grid">
+        {% for playlist in playlists %}
+        <div class="playlist-card" onclick="window.location.href='{{ url_for('playlist_view', playlist_id=playlist.id) }}'">
+            <div class="playlist-card-header">
+                <h3 class="playlist-card-title">{{ playlist.name }}</h3>
+                <div class="playlist-card-actions" onclick="event.stopPropagation();">
+                    <button type="button" 
+                            class="btn btn-sm btn-link playlist-edit-btn" 
+                            data-playlist-id="{{ playlist.id }}"
+                            data-playlist-name="{{ playlist.name }}"
+                            data-playlist-description="{{ playlist.description or '' }}"
+                            title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button type="button" 
+                            class="btn btn-sm btn-link text-danger playlist-delete-btn" 
+                            data-playlist-id="{{ playlist.id }}"
+                            data-playlist-name="{{ playlist.name }}"
+                            title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            {% if playlist.description %}
+            <div class="playlist-card-description">
+                {{ playlist.description }}
+            </div>
+            {% endif %}
+            <div class="playlist-card-meta">
+                <span class="playlist-song-count">
+                    <i class="fas fa-music"></i> {{ playlist.songs.count() }} song{{ 's' if playlist.songs.count() != 1 else '' }}
+                </span>
+                <span class="playlist-duration">
+                    <i class="fas fa-clock"></i> {{ playlist.get_total_duration_formatted() }}
+                </span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-list fa-3x"></i>
+        <h3>No Playlists Yet</h3>
+        <p>Create your first playlist to organize your music.</p>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPlaylistModal">
+            <i class="fas fa-plus"></i> Create Playlist
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Create Playlist Modal -->
+<div class="modal fade" id="createPlaylistModal" tabindex="-1" aria-labelledby="createPlaylistModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createPlaylistModalLabel">
+                    <i class="fas fa-plus me-2"></i>Create New Playlist
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createPlaylistForm">
+                    <div class="mb-3">
+                        <label for="playlistName" class="form-label">Playlist Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="playlistName" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="playlistDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="playlistDescription" name="description" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="createPlaylistSubmit">
+                    <i class="fas fa-plus"></i> Create
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Playlist Modal -->
+<div class="modal fade" id="editPlaylistModal" tabindex="-1" aria-labelledby="editPlaylistModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editPlaylistModalLabel">
+                    <i class="fas fa-edit me-2"></i>Edit Playlist
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editPlaylistForm">
+                    <input type="hidden" id="editPlaylistId" name="id">
+                    <div class="mb-3">
+                        <label for="editPlaylistName" class="form-label">Playlist Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="editPlaylistName" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPlaylistDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="editPlaylistDescription" name="description" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="editPlaylistSubmit">
+                    <i class="fas fa-save"></i> Save
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/playlists.js') }}"></script>
+{% endblock %}
+

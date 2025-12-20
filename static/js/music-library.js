@@ -40,8 +40,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Song row click handler - show details modal
     document.querySelectorAll('.song-row').forEach(function(row) {
         row.addEventListener('click', function(e) {
-            // Don't trigger if clicking on a link or button
-            if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') {
+            // Don't trigger if clicking on a link, button, or checkbox
+            if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON' || 
+                e.target.tagName === 'INPUT' || e.target.closest('input[type="checkbox"]')) {
                 return;
             }
             
@@ -91,6 +92,235 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
         });
     });
+    
+    // ========== PLAYLIST FUNCTIONALITY ==========
+    
+    // Load user playlists
+    let userPlaylists = [];
+    function loadUserPlaylists() {
+        return fetch('/music/playlists/user-playlists')
+            .then(response => response.json())
+            .then(data => {
+                if (Array.isArray(data)) {
+                    userPlaylists = data;
+                    return data;
+                } else {
+                    console.error('Invalid playlists data:', data);
+                    return [];
+                }
+            })
+            .catch(error => {
+                console.error('Error loading playlists:', error);
+                return [];
+            });
+    }
+    
+    // Add song to playlist
+    function addSongToPlaylist(playlistId, trackUris) {
+        fetch(`/music/playlists/${playlistId}/add-songs`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ track_uris: trackUris })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error adding songs: ' + data.error);
+                return;
+            }
+            
+            const added = data.added_count || 0;
+            const errors = data.error_count || 0;
+            
+            if (added > 0) {
+                // Show success message
+                const playlist = userPlaylists.find(p => p.id === parseInt(playlistId));
+                const playlistName = playlist ? playlist.name : 'playlist';
+                showNotification(`Added ${added} song(s) to ${playlistName}`, 'success');
+            }
+            
+            if (errors > 0) {
+                showNotification(`Some songs could not be added (${errors} error(s))`, 'warning');
+            }
+        })
+        .catch(error => {
+            console.error('Error adding songs to playlist:', error);
+            alert('Error adding songs to playlist. Please try again.');
+        });
+    }
+    
+    // Bulk selection functionality
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const songCheckboxes = document.querySelectorAll('.song-checkbox');
+    const bulkActions = document.getElementById('bulkActions');
+    const selectedCount = document.getElementById('selectedCount');
+    const bulkAddToPlaylistBtn = document.getElementById('bulkAddToPlaylistBtn');
+    
+    function updateBulkActions() {
+        const checked = Array.from(songCheckboxes).filter(cb => cb.checked);
+        const count = checked.length;
+        
+        if (count > 0) {
+            bulkActions.style.display = 'flex';
+            selectedCount.textContent = `${count} selected`;
+        } else {
+            bulkActions.style.display = 'none';
+        }
+    }
+    
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            songCheckboxes.forEach(cb => {
+                cb.checked = this.checked;
+            });
+            updateBulkActions();
+        });
+    }
+    
+    songCheckboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            // Update select all checkbox
+            if (selectAllCheckbox) {
+                const allChecked = Array.from(songCheckboxes).every(c => c.checked);
+                const someChecked = Array.from(songCheckboxes).some(c => c.checked);
+                selectAllCheckbox.checked = allChecked;
+                selectAllCheckbox.indeterminate = someChecked && !allChecked;
+            }
+            updateBulkActions();
+        });
+    });
+    
+    // Bulk add to playlist
+    if (bulkAddToPlaylistBtn) {
+        bulkAddToPlaylistBtn.addEventListener('click', function() {
+            const checked = Array.from(songCheckboxes).filter(cb => cb.checked);
+            if (checked.length === 0) {
+                alert('Please select at least one song');
+                return;
+            }
+            
+            const trackUris = checked.map(cb => cb.value);
+            const bulkModal = new bootstrap.Modal(document.getElementById('bulkAddToPlaylistModal'));
+            const bulkCount = document.getElementById('bulkAddCount');
+            const bulkOptions = document.getElementById('bulkPlaylistOptions');
+            
+            bulkCount.textContent = trackUris.length;
+            
+            // Load playlists into modal
+            bulkOptions.innerHTML = '<div class="text-center p-3"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+            bulkModal.show();
+            
+            loadUserPlaylists().then(() => {
+                if (userPlaylists.length === 0) {
+                    bulkOptions.innerHTML = '<div class="text-muted p-3">No playlists yet. Create one below.</div>';
+                } else {
+                    let html = '<div class="list-group">';
+                    userPlaylists.forEach(playlist => {
+                        html += `
+                            <a href="#" class="list-group-item list-group-item-action bulk-playlist-item" data-playlist-id="${playlist.id}">
+                                <i class="fas fa-list"></i> ${playlist.name}
+                                <small class="text-muted">(${playlist.song_count} songs)</small>
+                            </a>
+                        `;
+                    });
+                    html += '</div>';
+                    bulkOptions.innerHTML = html;
+                    
+                    // Add click handlers
+                    bulkOptions.querySelectorAll('.bulk-playlist-item').forEach(item => {
+                        item.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            const playlistId = this.dataset.playlistId;
+                            bulkModal.hide();
+                            addSongToPlaylist(playlistId, trackUris);
+                            // Uncheck all
+                            songCheckboxes.forEach(cb => cb.checked = false);
+                            if (selectAllCheckbox) selectAllCheckbox.checked = false;
+                            updateBulkActions();
+                        });
+                    });
+                }
+            });
+        });
+    }
+    
+    // Create playlist from bulk
+    const createPlaylistFromBulkModal = document.getElementById('createPlaylistFromBulkModal');
+    if (createPlaylistFromBulkModal) {
+        document.getElementById('createPlaylistFromBulkSubmit')?.addEventListener('click', function() {
+            const form = document.getElementById('createPlaylistFromBulkForm');
+            const name = document.getElementById('createPlaylistFromBulkName').value.trim();
+            const description = document.getElementById('createPlaylistFromBulkDescription').value.trim();
+            
+            if (!name) {
+                alert('Playlist name is required');
+                return;
+            }
+            
+            const checked = Array.from(songCheckboxes).filter(cb => cb.checked);
+            const trackUris = checked.map(cb => cb.value);
+            
+            if (trackUris.length === 0) {
+                alert('Please select at least one song');
+                return;
+            }
+            
+            fetch('/music/playlists/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name, description: description || null })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error creating playlist: ' + data.error);
+                    return;
+                }
+                
+                // Add songs to new playlist
+                addSongToPlaylist(data.id, trackUris);
+                
+                // Reload playlists
+                loadUserPlaylists().then(() => {
+                    bootstrap.Modal.getInstance(createPlaylistFromBulkModal).hide();
+                    form.reset();
+                    // Uncheck all
+                    songCheckboxes.forEach(cb => cb.checked = false);
+                    if (selectAllCheckbox) selectAllCheckbox.checked = false;
+                    updateBulkActions();
+                    showNotification(`Playlist "${data.name}" created with ${trackUris.length} song(s)!`, 'success');
+                });
+            })
+            .catch(error => {
+                console.error('Error creating playlist:', error);
+                alert('Error creating playlist. Please try again.');
+            });
+        });
+    }
+    
+    // Notification helper
+    function showNotification(message, type = 'info') {
+        // Create a simple toast notification
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info'} alert-dismissible fade show position-fixed`;
+        toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        toast.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    }
+    
+    // Load playlists on page load
+    loadUserPlaylists();
     
     // Format song details for display
     function formatSongDetails(song) {

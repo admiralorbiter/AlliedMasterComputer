@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}{{ playlist.name }} - Playlist{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/music.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/playlists.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="playlist-view-container">
+    <div class="playlist-view-header">
+        <div class="playlist-view-info">
+            <h1><i class="fas fa-list"></i> {{ playlist.name }}</h1>
+            {% if playlist.description %}
+            <p class="playlist-description">{{ playlist.description }}</p>
+            {% endif %}
+            <div class="playlist-meta">
+                <span class="playlist-song-count">
+                    <i class="fas fa-music"></i> {{ songs|length }} song{{ 's' if songs|length != 1 else '' }}
+                </span>
+                <span class="playlist-duration">
+                    <i class="fas fa-clock"></i> {{ playlist.get_total_duration_formatted() }}
+                </span>
+            </div>
+        </div>
+        <div class="playlist-view-actions">
+            <a href="{{ url_for('music_library') }}?playlist_id={{ playlist.id }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add Songs
+            </a>
+            <a href="{{ url_for('playlists_list') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Playlists
+            </a>
+        </div>
+    </div>
+
+    <!-- Songs Table -->
+    {% if songs %}
+    <div class="table-responsive">
+        <table class="table table-striped table-hover" id="playlistSongsTable">
+            <thead>
+                <tr>
+                    <th style="width: 40px;">#</th>
+                    <th style="width: 40px;">Order</th>
+                    <th>Track Name</th>
+                    <th>Artist</th>
+                    <th>Album</th>
+                    <th>Release Date</th>
+                    <th>Popularity</th>
+                    <th>Explicit</th>
+                    <th>Tempo</th>
+                    <th style="width: 100px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="playlistSongsBody">
+                {% for song in songs %}
+                <tr class="playlist-song-row" data-track-uri="{{ song.track_uri }}" data-position="{{ loop.index0 }}">
+                    <td>{{ loop.index }}</td>
+                    <td class="reorder-controls">
+                        <button type="button" class="btn btn-sm btn-link move-up-btn" title="Move Up">
+                            <i class="fas fa-arrow-up"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-link move-down-btn" title="Move Down">
+                            <i class="fas fa-arrow-down"></i>
+                        </button>
+                    </td>
+                    <td>
+                        <strong>{{ song.track_name or '—' }}</strong>
+                    </td>
+                    <td>
+                        <span style="color: #6c757d;">{{ song.artist_names or '—' }}</span>
+                    </td>
+                    <td>
+                        <span style="color: #6c757d; font-size: 0.9rem;">{{ song.album_name or '—' }}</span>
+                    </td>
+                    <td>
+                        <span style="color: #6c757d;">{{ song.release_date or '—' }}</span>
+                    </td>
+                    <td>
+                        {% if song.popularity is not none %}
+                            <span class="badge bg-info">{{ song.popularity }}</span>
+                        {% else %}
+                            <span style="color: #adb5bd;">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if song.explicit %}
+                            <span class="badge bg-danger">Explicit</span>
+                        {% else %}
+                            <span class="badge bg-success">Clean</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if song.tempo %}
+                            <span style="font-weight: 600; color: #6c5ce7;">{{ "%.1f"|format(song.tempo) }} <small style="color: #6c757d; font-weight: normal;">BPM</small></span>
+                        {% else %}
+                            <span style="color: #adb5bd;">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-danger remove-song-btn" data-track-uri="{{ song.track_uri }}" title="Remove from Playlist">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-music fa-3x"></i>
+        <h3>No Songs in This Playlist</h3>
+        <p>Add songs from your music library to get started.</p>
+        <a href="{{ url_for('music_library') }}?playlist_id={{ playlist.id }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Songs
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const PLAYLIST_ID = {{ playlist.id }};
+</script>
+<script src="{{ url_for('static', filename='js/playlists.js') }}"></script>
+{% endblock %}
+

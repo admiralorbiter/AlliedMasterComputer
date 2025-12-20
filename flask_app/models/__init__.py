@@ -15,5 +15,6 @@ from .project_note import ProjectNote
 from .project_link import ProjectLink
 from .song import Song
 from .music_import_job import MusicImportJob
+from .playlist import Playlist, playlist_songs
 
-__all__ = ['db', 'BaseModel', 'User', 'AdminLog', 'SystemMetrics', 'ResearchBrief', 'Tag', 'Todo', 'SubTask', 'Event', 'Project', 'project_research_briefs', 'Goal', 'ProjectNote', 'ProjectLink', 'Song', 'MusicImportJob']
+__all__ = ['db', 'BaseModel', 'User', 'AdminLog', 'SystemMetrics', 'ResearchBrief', 'Tag', 'Todo', 'SubTask', 'Event', 'Project', 'project_research_briefs', 'Goal', 'ProjectNote', 'ProjectLink', 'Song', 'MusicImportJob', 'Playlist', 'playlist_songs']

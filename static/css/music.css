@@ -570,3 +570,104 @@
     background: #5a4fd4;
 }
 
+/* ========== PLAYLIST FEATURES ========== */
+
+/* Bulk Actions */
+.bulk-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1.25rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 10px;
+    color: white;
+    box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3);
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.selected-count {
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 0.5px;
+}
+
+.bulk-actions .btn {
+    font-weight: 600;
+    padding: 0.625rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: all 0.2s ease;
+}
+
+.bulk-actions .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+
+/* Checkbox Styling */
+.song-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: #6c5ce7;
+    transition: transform 0.2s ease;
+}
+
+.song-checkbox:hover {
+    transform: scale(1.1);
+}
+
+#selectAllCheckbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: #6c5ce7;
+    transition: transform 0.2s ease;
+}
+
+#selectAllCheckbox:hover {
+    transform: scale(1.1);
+}
+
+/* Bulk Add Modal */
+#bulkAddToPlaylistModal .list-group-item {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid #e9ecef;
+    margin-bottom: 0.5rem;
+    border-radius: 8px;
+}
+
+#bulkAddToPlaylistModal .list-group-item:hover {
+    background-color: #f8f9fa;
+    border-color: #6c5ce7;
+    transform: translateX(4px);
+}
+
+#bulkAddToPlaylistModal .list-group-item i {
+    color: #6c5ce7;
+    margin-right: 0.5rem;
+}
+
+/* Prevent row click when clicking checkbox */
+.song-row td:first-child {
+    cursor: default;
+}
+
+/* Update song row hover to exclude checkbox column */
+.song-row:hover td:not(:first-child) {
+    background: linear-gradient(90deg, #f8f9ff 0%, #ffffff 100%);
+}
+
