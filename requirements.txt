@@ -36,6 +36,9 @@ pdfplumber>=0.10.0
 # HTML Sanitization
 bleach>=6.0.0
 
+# Markdown Documentation
+markdown>=3.5.0
+
 # Spotify Integration
 spotipy>=2.25.2
 
